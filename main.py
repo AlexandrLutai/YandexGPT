@@ -1,8 +1,8 @@
 import autorizationData.authorizationData as autorization
 from crm.alfaCRM import AlfaCRM 
-from dataBase.tempTables import tempDataBase
+from dataBase.localDB import DataBase
 
-tdb = tempDataBase()
+tdb = DataBase()
 
 # print(crm.tempToken)
 # header = {'X-ALFACRM-TOKEN': crm.tempToken}
