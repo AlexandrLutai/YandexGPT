@@ -3,6 +3,7 @@ from crm.alfaCRM import AlfaCRM
 from dataBase.localDB import DataBase
 
 tdb = DataBase()
+tdb.insertToDB()
 
 # print(crm.tempToken)
 # header = {'X-ALFACRM-TOKEN': crm.tempToken}

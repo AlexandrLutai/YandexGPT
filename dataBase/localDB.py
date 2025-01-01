@@ -45,9 +45,29 @@ class DataBase:
         connection.commit()
         connection.close()
 
-    def _connection(self,func):
-        self.connction = sqlite3.connect(self.path)
-        func()
-        self.connction.close();
+    #Декоратор дописать
+    # def _connection(self,func):
+    #     self.connction = sqlite3.connect(self.path)
+    #     func(self)
+    #     self.connction.close();
 
+ 
+   
+    
+    def synchronizeDB(self, data:dict):
+        connection = sqlite3.connect(self.path)
+        cursor = connection.cursor()
+        self._clearTables(cursor)
+        self._fillTeachers(cursor, data['teachers'])
+        connection.execute()
+    
+    def _clearTables(self,cursor:sqlite3.Cursor):
+        cursor.execute('TRUNCATE Teachers, Groups, Students')
+
+    def _fillTeachers(self, cursor:sqlite3.Cursor, teachers:list):
+        for i in teachers:
+            cursor.execute('INSERT INTO Teachers (id, name) VALUES(?,?)', (i['id'], i['name']))
+        
+
+    
             
