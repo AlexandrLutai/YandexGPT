@@ -1,12 +1,8 @@
-import requests
-import json
-import sqlite3
 import autorizationData.authorizationData as autorization
 from crm.alfaCRM import AlfaCRM 
+from dataBase.tempTables import tempDataBase
 
-crm = AlfaCRM(autorization.hostname,autorization.email, autorization.key )
-
-print(crm.getData("Lessons", {"date_from":"2024-12-27", "status" : 3}))
+tdb = tempDataBase()
 
 # print(crm.tempToken)
 # header = {'X-ALFACRM-TOKEN': crm.tempToken}
