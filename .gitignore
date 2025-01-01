@@ -2,9 +2,7 @@
 __pycache__/
 *.py[cod]
 
-# Файлы конфигурации для venv
-venv/
-.env
+
 
 # Файлы дистрибутивов и артефакты упаковки
 dist/
@@ -15,15 +13,11 @@ dist/
 *.py,cover
 .cache/
 
-# Файлы *.py,cover не несут никакого смысла
-*.py,cover
 
 # Контрольные точки в Jupyter notebook лучше оставить в стороне
 .ipynb_checkpoints
 
 autorizationData/
-*.py
 
-*.json
-
+*json
 *.txt
