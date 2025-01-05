@@ -1,13 +1,19 @@
 import autorizationData.authorizationData as autorization
 from crm.alfaCRM import AlfaCRM, AlfaCRMDataWrapper
 from dataBase.localDB import DataBase
+from YandexGPT.yandexGPT import YandexGPTData, YandexGPTModel
+
+gpt = YandexGPTModel(autorization.yandexGPTKey,autorization.yandexCloudIdentificator)
+
 
 crm = AlfaCRM(autorization.crmhostname,autorization.crmEmail,autorization.crmKey)
 db = DataBase()
-dataWrapper = AlfaCRMDataWrapper(db,crm,7,13)
-
-
-
+s = [
+    {"rer":"fdsfds",
+     'texs':"sadasd"}
+]
+print(str(s))
+print(dict(s))
 
 # for i in range(10):
 #     list = dataWrapper._fillStudents(i)
@@ -15,8 +21,7 @@ dataWrapper = AlfaCRMDataWrapper(db,crm,7,13)
 #     for item in list:
        
 #         print(item['name'])
-dataWrapper.synchronizeGroupOccupancyTable()
-dataWrapper.addStudentInTableStudentAsences()
+
 
 
 

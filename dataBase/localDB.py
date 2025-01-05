@@ -1,10 +1,37 @@
 import sqlite3
-import os
+import enum
+class GroupOccupancyFields(enum.Enum):
+        idsStudents = 0
+        topic = 1
+        location = 2
+        teachers = 3
+        day = 4
+        time = 5
+        assignWorkOffs = 6
+        idGroup = 7
+        countStudents = 8 
+        maxStudents = 9
+
+class StudentAbsencesFields(enum.Enum):
+        id = 0
+        name = 1
+        date = 2
+        topic = 3
+        idGroups = 4
+        idLesson = 5
+        phoneNumber = 6
+        teacher = 7
+        workOffScheduled = 7
+        dateNextConnection = 8
+        groupForWorkingOut = 9
+
 class DataBase:
 
+    
     def __init__(self):
         self.path ="dataBase/dataBases/dataBase.db"
         self._createTables()
+        
         pass
 
     def _createTables(self):
@@ -22,8 +49,8 @@ class DataBase:
             phoneNumber TEXT NOT NULL,
             teacher TEXT NOT NULL,
             workOffScheduled INTEGER NOT NULL DEFAULT 0,
-            dateNextConnection TEXT
-           
+            dateNextConnection TEXT DEFAULT 0,
+            groupForWorkingOut TEXT DEFAULT 1
             );
             CREATE TABLE IF NOT EXISTS GroupOccupancy(
             idsStudents TEXT,
@@ -90,3 +117,60 @@ class DataBase:
             connection.commit()
         connection.close()
             
+    def _selectGroupOccupancyData(self):
+        connection = sqlite3.connect(self.path)
+        cursor = connection.cursor()
+        cursor.execute("SELECT * FROM GroupOccupancy")
+        c = cursor.fetchall()
+        connection.close()
+        return c
+    
+    def _selectStudentAbsences(self):
+        connection = sqlite3.connect(self.path)
+        cursor = connection.cursor()
+        cursor.execute("SELECT * FROM StudentAbsences")
+        c = cursor.fetchall()
+        connection.close()
+        return c
+    
+    def getStudentAbsencesData(self):
+        temp = self._selectStudentAbsences()
+        studentsList = []
+        for i in temp:
+              
+              studentsList.append(
+                   {
+                        'id': i[0],
+                        'name': i[1],
+                        'date':i[2],
+                        'topic':i[3],
+                        'idGroups': i[4],
+                        'idLesson': i[5],
+                        'phoneNumber':i[6],
+                        'topic':i[7],
+                        'workOffScheduled':i[8],
+                        'dateNextConnection':i[9],
+                        'groupForWorkingOut':i[10]
+                    }
+              )
+        return studentsList
+    
+    def getGroupOccupancyData(self):
+        temp = self._selectGroupOccupancyData()
+        groupList = []
+        for i in temp:
+            groupList.append(
+            { 
+                'idsStudents' : i[0],
+                'topic' : i[1],
+                'location': i[2],
+                'teachers' : i[3],
+                'day' : i[4],
+                'time': i[5],
+                'assignWorkOffs': i[6],
+                'idGroup' : i[7],
+                'countStudents' : i[8],
+                'maxStudents': i[9],
+            }
+            )
+        return groupList
