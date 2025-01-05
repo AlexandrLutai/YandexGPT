@@ -2,7 +2,7 @@ import autorizationData.authorizationData as autorization
 from crm.alfaCRM import AlfaCRM, AlfaCRMDataWrapper
 from dataBase.localDB import DataBase
 
-crm = AlfaCRM(autorization.hostname,autorization.email,autorization.key)
+crm = AlfaCRM(autorization.crmhostname,autorization.crmEmail,autorization.crmKey)
 db = DataBase()
 dataWrapper = AlfaCRMDataWrapper(db,crm,7,13)
 
@@ -15,6 +15,7 @@ dataWrapper = AlfaCRMDataWrapper(db,crm,7,13)
 #     for item in list:
        
 #         print(item['name'])
+dataWrapper.synchronizeGroupOccupancyTable()
 dataWrapper.addStudentInTableStudentAsences()
 
 

@@ -168,9 +168,10 @@ class AlfaCRMDataWrapper:
         for page in self._nextLessonsData:
             for lesson in page:
                 group = self._findRecord(self._groupData,'id',lesson['group_ids'][0])
+                prevLesson = self._findRecord(self._previusLessonData,'group_ids',lesson['group_ids'])
                 groupList.append({
                     'idsStudents': ','.join(map(str,lesson['customer_ids'])),
-                    'topic': lesson['topic'],
+                    'topic': prevLesson['topic'],
                     'location':self._getLocationName(group),
                     'teachers': ', '.join(group['teacher_ids']),
                     'day': getDayName(datetime.strptime(lesson['date'],'%Y-%m-%d')),
