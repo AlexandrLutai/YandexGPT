@@ -20,5 +20,8 @@ dist/
 autorizationData/
 *.db
 
+
 *.json
 *.txt
+*.db
+

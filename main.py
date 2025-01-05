@@ -1,12 +1,24 @@
-import requests
-import json
-import sqlite3
 import autorizationData.authorizationData as autorization
-from crm.alfaCRM import AlfaCRM 
+from crm.alfaCRM import AlfaCRM, AlfaCRMDataWrapper
+from dataBase.localDB import DataBase
 
-crm = AlfaCRM(autorization.hostname,autorization.email, autorization.key )
+crm = AlfaCRM(autorization.crmhostname,autorization.crmEmail,autorization.crmKey)
+db = DataBase()
+dataWrapper = AlfaCRMDataWrapper(db,crm,7,13)
 
-print(crm.getData("Lessons", {"date_from":"2024-12-27", "status" : 3}))
+
+
+
+# for i in range(10):
+#     list = dataWrapper._fillStudents(i)
+#     print("\n\n")
+#     for item in list:
+       
+#         print(item['name'])
+dataWrapper.synchronizeGroupOccupancyTable()
+dataWrapper.addStudentInTableStudentAsences()
+
+
 
 # print(crm.tempToken)
 # header = {'X-ALFACRM-TOKEN': crm.tempToken}
