@@ -18,6 +18,7 @@ dist/
 .ipynb_checkpoints
 
 autorizationData/
+*.db
 
-*json
+*.json
 *.txt
