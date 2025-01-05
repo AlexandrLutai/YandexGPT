@@ -14,14 +14,16 @@ class DataBase:
             '''
             CREATE TABLE IF NOT EXISTS StudentAbsences(
             id INTEGER NOT NULL, 
-            Name TEXT NOT NULL,
+            name TEXT NOT NULL,
             date TEXT NOT NULL,
             topic TEXT NOT NULL,
-            groupId INTEGER NOT NULL,
+            idGroups TEXT NOT NULL,
+            idLesson INTEGER NOT NULL,
             phoneNumber TEXT NOT NULL,
-            assignWorkOff INTEGER NOT NULL DEFAULT 0,
             teacher TEXT NOT NULL,
+            workOffScheduled INTEGER NOT NULL DEFAULT 0,
             dateNextConnection TEXT
+           
             );
             CREATE TABLE IF NOT EXISTS GroupOccupancy(
             idsStudents TEXT,
@@ -31,10 +33,10 @@ class DataBase:
             day TEXT NOT NULL,
             time TEXT NOT NULL,
             assignWorkOffs INTEGER NOT NULL,
-            groupId INTEGER NOT NULL,
+            idGroup INTEGER NOT NULL,
             countStudents INTEGER NOT NULL,
             maxStudents INTEGER NOT NULL
-
+            
             
             );
             
@@ -59,27 +61,32 @@ class DataBase:
         connection.commit()
         connection.close()
     
-    
+    def _clearTableGroupOccupancy(self,connection:sqlite3.Connection):
+        cursor = connection.cursor()
+        cursor.execute('DELETE FROM GroupOccupancy;')
+        connection.commit()
 
     def _fillTeachers(self, cursor:sqlite3.Cursor, teachers:list):
-        cursor.execute('DELETE FROM Teachers;')
         for i in teachers:
             cursor.execute('INSERT INTO Teachers (id, name) VALUES(?,?)', (i['id'], i['name']))
         
     def fillTableGroupOccupancy(self, groups:list):
         connection = sqlite3.connect(self.path)
-       
+        self._clearTableGroupOccupancy(connection)
         cursor = connection.cursor()
-        cursor.execute('DELETE FROM GroupOccupancy;')
         for i in groups:
-            cursor.execute('INSERT INTO GroupOccupancy (idsStudents,topic,location,teachers,day,time,assignWorkOffs,groupId,countStudents,maxStudents) VALUES(?,?,?,?,?,?,?,?,?,?)', (i['idsStudents'], i['topic'],i['location'], i['teachers'],i['day'],i['time'],i['assignWorkOffs'],i['groupId'],i['countStudents'],i['limit']))
+            cursor.execute('INSERT INTO GroupOccupancy (idsStudents,topic,location,teachers,day,time,assignWorkOffs,idGroup,countStudents,maxStudents) VALUES(?,?,?,?,?,?,?,?,?,?)', (i['idsStudents'], i['topic'],i['location'], i['teachers'],i['day'],i['time'],i['assignWorkOffs'],i['idGroup'],i['countStudents'],i['limit']))
             connection.commit()
         connection.close()
+    
     def fillTableStudentAbsences(self, students:list):
         connection = sqlite3.connect(self.path)
         cursor = connection.cursor()
         for i in students:
-            cursor.execute('INSERT INTO GroupOccupancy (id,Name,date,topic,groupId,phoneNumber,assignWorkOff,teacher,dateNextConnection) VALUES(?,?,?,?,?,?,?,?,?)', (i['id'], i['name'],i['date'],i['topic'], i['groupId'],i['phoneNumber'],i['teacher'],i['assignWorksOff']))
+            cursor.execute("SELECT * FROM StudentAbsences WHERE(id =? AND idLesson =?)",(i['id'], i['idLesson']))
+            if not cursor.fetchone():
+                cursor.execute('INSERT INTO StudentAbsences (id,name,date,topic,idGroups,phoneNumber,teacher,idLesson) VALUES(?,?,?,?,?,?,?,?)', 
+                           (i['id'], i['name'],i['date'],i['topic'], i['idGroups'],i['phoneNumber'],i['teacher'],i['idLesson']))
             connection.commit()
         connection.close()
             

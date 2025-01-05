@@ -4,11 +4,18 @@ from dataBase.localDB import DataBase
 
 crm = AlfaCRM(autorization.hostname,autorization.email,autorization.key)
 db = DataBase()
-dataWrapper = AlfaCRMDataWrapper(db,crm)
+dataWrapper = AlfaCRMDataWrapper(db,crm,7,13)
 
 
-print('\n \n')
-dataWrapper.fillDataBase()
+
+
+# for i in range(10):
+#     list = dataWrapper._fillStudents(i)
+#     print("\n\n")
+#     for item in list:
+       
+#         print(item['name'])
+dataWrapper.addStudentInTableStudentAsences()
 
 
 
