@@ -1,72 +1,21 @@
 import autorizationData.authorizationData as autorization
-from crm.alfaCRM import AlfaCRM, AlfaCRMDataWrapper
-from dataBase.localDB import DataBase
-from YandexGPT.yandexGPT import YandexGPTData, YandexGPTModel
-
-gpt = YandexGPTModel(autorization.yandexGPTKey,autorization.yandexCloudIdentificator)
-
-
-crm = AlfaCRM(autorization.crmhostname,autorization.crmEmail,autorization.crmKey)
+from crm.alfaCRM import AlfaCRM, AlfaCRMDataManager, AlfaCRMDBManager
+from dataBase.localDB import DataBase, getDateNextWeekday
 db = DataBase()
-s = [
-    {"rer":"fdsfds",
-     'texs':"sadasd"}
-]
-print(str(s))
-print(dict(s))
+crm = AlfaCRM(autorization.crmhostname, autorization.crmEmail, autorization.crmKey)
 
-# for i in range(10):
-#     list = dataWrapper._fillStudents(i)
-#     print("\n\n")
-#     for item in list:
-       
-#         print(item['name'])
+crmManager = AlfaCRMDataManager(crm,7,14)
 
+crmToDBManager = AlfaCRMDBManager(db, crmManager)
 
+for i in crmManager.getLocations():
+    db.insertNewLocation(i)
 
+crmToDBManager.synchroniseTeachers()
+crmToDBManager.synchroniseRegularLessons()
+crmToDBManager.insertInStudentAbsences()
+db.addDataInTableGroupOccupancy()
 
-# print(crm.tempToken)
-# header = {'X-ALFACRM-TOKEN': crm.tempToken}
-# hostname = 'kiberonestavropol.s20.online'
-
-
-# #Получение информации о организации в целом
-# barancPath = f"https://{hostname}/v2api/branch/index"
-# #Не работает
-# #locationPath = f'https://{hostname}/v2api/0/location/index'
-# #locationPath = f'https://{hostname}/v2api/0/location/index'
-
-# # costumerPath = f'https://{hostname}/v2api/0/customer/index'
-
-# #Группы
-# # groupPath =f'https://{hostname}/v2api/1/group/index'
-
-# # r = requests.post(groupPath,data=json.dumps({"removed" : 0}),headers = header)
-# # a = json.loads(r.text)
-
-# # Данные по уроку
-# # lessonPath = f'https://{hostname}/v2api/1/lesson/index'
-# # r = requests.post(lessonPath,data=json.dumps({"status" : 3}),headers = header)
-
-# costumerPath = f"https://{hostname}/v2api/1/customer/index"
-# r = requests.post(barancPath,data=json.dumps({"is_active" : 1}),headers = header)
-# print(r.text.replace(',', ",\n"))
-
-
-
-
-# with open("p.json", "w", encoding='utf-8') as d:
-#     d.write(json.dumps(r.text, indent=4, ensure_ascii=False, separators=("\n", ",")))
-
-#print(json.loads(r.text))
-
-# path = "https://kiberonestavropol.s20.online/v2api/auth/login"
-
-# email = 'alex89620109009@gmail.com'
-# api_key = '948f3dcb-98a2-11ec-8426-ac1f6b4782be'
-
-# print()
-# r = requests.post(path,json.dumps({'email':email, 'api_key':api_key}))
-
-# #r = requests.post(path,json.dumps({'email':'alex89620109009@gmail.com', 'api_key':'948f3dcb-98a2-11ec-8426-ac1f6b4782be'}))
-# print(json.loads(r.text)["token"])
+#Выполняется слишком долго, подумать над хранением данных клиентов локально
+#Добавить класс для внесения изменений в AlfaCRM
+#Документирование кода 

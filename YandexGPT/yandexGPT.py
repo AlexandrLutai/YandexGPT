@@ -16,7 +16,8 @@ class YandexGPTModel:
         self._url = "https://llm.api.cloud.yandex.net/foundationModels/v1/completion"
         self._modelUrl = f"gpt://{cloudBranch}/yandexgpt-lite"      
 
-    def _fillGPTPrompt(self, messages:list):
+    
+    def fillGPTPrompt(self,message:dict, messages:list):
         return {
             "modelUri": self._modelUrl,
             "completionOptions":self._competitions,
@@ -28,31 +29,32 @@ class YandexGPTModel:
         r = requests.post(url=self._url, json=prompt, headers=self._headers)
         return r.text
    
-class YandexGPTData:
+class YandexGPTChatBot:
 
     def __init__(self, gpt:YandexGPTModel, db:DataBase):
         self.gpt = gpt
         self.db = db
+        self.contexts = {}
         self.groups = []
         self.students = []
+        
 
     def _modelTraining(self):
         return self.gpt.gptRequest()
 
     def _getInformationAboutGroups(self):
         self.groups = self.db.getGroupOccupancyData()
+        text = "Информация по группам: "
+        for i in self.groups:
+            text +=  f"\nЛокация: {i['location']} Тема: {i['topic']} Преподаватель: {i['teachers']} День: {i['day']} Время: {i['time']} Id группы: {i['idGroup']} Мест в группе: {i['maxStudents'] - i['countStudents']} Можно назначать отработку: {yesOrNo(1)} " # yesOrNo(i['assignWorkOffs'])
+            
         messages = [ {
             "role": "system",
-            "text": "Информация по группам если понятна, отправь SERVER|SUCCESS"
+            "text": text,
         }]
-        for i in self.groups:
-            message = {
-            "role": "system",
-            "text":  f"Локация: {i['location']} Тема: {i['topic']} Преподаватель: {i['teachers']} День: {i['day']} Время: {i['time']} Id группы: {i['idGroup']} Мест в группе: {i['maxStudents'] - i['countStudents']} Можно назначать отработку: {yesOrNo(1)} " # yesOrNo(i['assignWorkOffs'])
-            }
-            messages.append(message)
         return messages
-    
+   
+
     #Сообщения о клиенте лучше передовать по одному
     def _getInformationStudentAbsences(self):
         self.students = self.db.getStudentAbsencesData()
@@ -69,24 +71,7 @@ class YandexGPTData:
             messages.append(message)
         return messages
     
-    #Тестовая функция, переписать
-    def communicate(self):
-        print(self._modelTraining())
-        groupMessage = self._getInformationAboutGroups()
-        print(self.gpt.gptRequest(groupMessage))
-        studentMessage = self._getInformationStudentAbsences()
-        for i in studentMessage:
-           temp = []
-           temp.append(i)
-           print(self.gpt.gptRequest(temp))
-           while True:
-               print(self.gpt.gptRequest([{"role": 'user',
-                                           "text": "CLIENT | 79624504274 | " + input('\n')
-                                           }
-                                           ]
-                                           )
-                                           )
-
+    
 #Костыль переписать
 def findInListById(l, id):
     for i in l:

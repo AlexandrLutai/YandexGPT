@@ -1,176 +1,205 @@
 import sqlite3
-import enum
-class GroupOccupancyFields(enum.Enum):
-        idsStudents = 0
-        topic = 1
-        location = 2
-        teachers = 3
-        day = 4
-        time = 5
-        assignWorkOffs = 6
-        idGroup = 7
-        countStudents = 8 
-        maxStudents = 9
+from contextlib import contextmanager
+import datetime
 
-class StudentAbsencesFields(enum.Enum):
-        id = 0
-        name = 1
-        date = 2
-        topic = 3
-        idGroups = 4
-        idLesson = 5
-        phoneNumber = 6
-        teacher = 7
-        workOffScheduled = 7
-        dateNextConnection = 8
-        groupForWorkingOut = 9
 
 class DataBase:
-
+    """Создаёт необходимые таблицы и предоставляет интерфейс ля работы с ними"""
     
     def __init__(self):
         self.path ="dataBase/dataBases/dataBase.db"
         self._createTables()
-        
         pass
 
     def _createTables(self):
-        connection = sqlite3.connect(self.path)
-        cursor = connection.cursor()
-        cursor.executescript(
-            '''
-            CREATE TABLE IF NOT EXISTS StudentAbsences(
-            id INTEGER NOT NULL, 
-            name TEXT NOT NULL,
-            date TEXT NOT NULL,
-            topic TEXT NOT NULL,
-            idGroups TEXT NOT NULL,
-            idLesson INTEGER NOT NULL,
-            phoneNumber TEXT NOT NULL,
-            teacher TEXT NOT NULL,
-            workOffScheduled INTEGER NOT NULL DEFAULT 0,
-            dateNextConnection TEXT DEFAULT 0,
-            groupForWorkingOut TEXT DEFAULT 1
-            );
-            CREATE TABLE IF NOT EXISTS GroupOccupancy(
-            idsStudents TEXT,
-            topic TEXT NOT NULL,
-            location TEXT NOT NULL,
-            teachers TEXT NOT NULL,
-            day TEXT NOT NULL,
-            time TEXT NOT NULL,
-            assignWorkOffs INTEGER NOT NULL,
-            idGroup INTEGER NOT NULL,
-            countStudents INTEGER NOT NULL,
-            maxStudents INTEGER NOT NULL
-            
-            
-            );
-            
-            '''
-        )
-        connection.commit()
-        connection.close()
-
-    #Декоратор дописать
-    # def _connection(self,func):
-    #     self.connction = sqlite3.connect(self.path)
-    #     func(self)
-    #     self.connction.close();
-
- 
-   
+        with db_ops(self.path) as cursor:
+            cursor.executescript(
+                '''
+                CREATE TABLE IF NOT EXISTS StudentAbsences(
+                idStudent INTEGER NOT NULL, 
+                name TEXT NOT NULL,
+                date TEXT NOT NULL,
+                topic TEXT NOT NULL,
+                idGroup TEXT NOT NULL,
+                idLesson INTEGER NOT NULL,
+                phoneNumber TEXT NOT NULL,
+                teacher INTEGER NOT NULL,
+                workOffScheduled INTEGER NOT NULL DEFAULT 0,
+                dateNextConnection TEXT DEFAULT 0,
+                dateLastConnection TEXT,
+                groupForWorkingOut INTEGER 
+                );
+                CREATE TABLE IF NOT EXISTS GroupOccupancy(
+                idGroup INTEGER,
+                newStudents TEXT,
+                idsStudents TEXT,
+                dateOfEvent TEXT,
+                count INTEGER DEFAULT 0,
+                lastUpdate TEXT 
+                );
+                CREATE TABLE IF NOT EXISTS RegularLessons(
+                idGroup INTEGER NOT NULL,
+                topic TEXT NOT NULL,
+                idsStudents TEXT,
+                location INTEGER NOT NULL,
+                teacher INTEGER NOT NULL,
+                day INTEGER NOT NULL,
+                timeFrom TEXT NOT NULL,
+                timeTo TEXT NOT NULL,
+                assignWorkOffs INTEGER DEFAULT 1,
+                maxStudents INTEGER NOT NULL,
+                lastUpdate TEXT NOT NULL
+                );
+                CREATE TABLE IF NOT EXISTS Locations(
+                id INTEGER NOT NULL,
+                name TEXT NOT NULL
+                );
+                CREATE TABLE IF NOT EXISTS Teachers(
+                id INTEGER NOT NULL,
+                name TEXT NOT NULL
+                )
+                '''
+            )
     
-    def synchronizeDB(self, data:dict):
-        connection = sqlite3.connect(self.path)
-        cursor = connection.cursor()
-        self._fillTeachers(cursor, data['Teachers'])
-        connection.commit()
-        connection.close()
-    
-    def _clearTableGroupOccupancy(self,connection:sqlite3.Connection):
-        cursor = connection.cursor()
-        cursor.execute('DELETE FROM GroupOccupancy;')
-        connection.commit()
 
-    def _fillTeachers(self, cursor:sqlite3.Cursor, teachers:list):
-        for i in teachers:
-            cursor.execute('INSERT INTO Teachers (id, name) VALUES(?,?)', (i['id'], i['name']))
-        
-    def fillTableGroupOccupancy(self, groups:list):
-        connection = sqlite3.connect(self.path)
-        self._clearTableGroupOccupancy(connection)
-        cursor = connection.cursor()
+    def addDataInTableGroupOccupancy(self):
+        with db_ops(self.path) as cursor:
+            cursor.execute("SELECT * FROM RegularLessons")
+            regulars = cursor.fetchall()
+            for item in regulars:
+                  id= item[0]
+                  idsStudents = item[2]
+                  cursor.execute("SELECT * FROM GroupOccupancy WHERE(idGroup=?)",[int(item[0])])
+                  if not cursor.fetchone():
+                      cursor.execute("INSERT INTO GroupOccupancy (idGroup,idsStudents,dateOfEvent,count,lastUpdate) VALUES (?,?,?,?,?)", 
+                                     (id, idsStudents, getDateNextWeekday(item[5]).strftime('%Y-%m-%d'), len(item[2].split(',')), datetime.date.today()  ))
+    
+    def synchroniseTableRegularLessons(self, groups:list):
+        with db_ops(self.path) as cursor:
+            cursor.execute("DELETE FROM RegularLessons")
         for i in groups:
-            cursor.execute('INSERT INTO GroupOccupancy (idsStudents,topic,location,teachers,day,time,assignWorkOffs,idGroup,countStudents,maxStudents) VALUES(?,?,?,?,?,?,?,?,?,?)', (i['idsStudents'], i['topic'],i['location'], i['teachers'],i['day'],i['time'],i['assignWorkOffs'],i['idGroup'],i['countStudents'],i['limit']))
-            connection.commit()
-        connection.close()
+            with db_ops(self.path) as cursor:
+                cursor.execute('INSERT INTO RegularLessons (idGroup,topic,idsStudents,location,teacher,day,timeFrom,timeTo,maxStudents,lastUpdate) VALUES(?,?,?,?,?,?,?,?,?,?)', 
+                               (i['idGroup'], i['topic'],i['idsStudents'], i['location'],i['teacher'],i['day'],i['timeFrom'],i['timeTo'],i['maxStudents'],i['lastUpdate']))
+            
+    def insertNewLocation(self, data:dict):
+        with db_ops(self.path) as cursor:
+            cursor.execute("SELECT * FROM Locations WHERE(id =?)",[int(data['id'])])
+            if not cursor.fetchone():
+                cursor.execute("INSERT INTO Locations (id,name) VALUES (?,?)",[data['id'], data['name']])
+
+    def synchroniseTeachers(self, data:dict):
+        with db_ops(self.path) as cursor:
+            cursor.execute("DELETE FROM Teachers")
+            for teacher in data:
+                cursor.execute("INSERT INTO Teachers (id,name) VALUES (?,?)",[teacher['id'], teacher['name']])
     
     def fillTableStudentAbsences(self, students:list):
-        connection = sqlite3.connect(self.path)
-        cursor = connection.cursor()
-        for i in students:
-            cursor.execute("SELECT * FROM StudentAbsences WHERE(id =? AND idLesson =?)",(i['id'], i['idLesson']))
-            if not cursor.fetchone():
-                cursor.execute('INSERT INTO StudentAbsences (id,name,date,topic,idGroups,phoneNumber,teacher,idLesson) VALUES(?,?,?,?,?,?,?,?)', 
-                           (i['id'], i['name'],i['date'],i['topic'], i['idGroups'],i['phoneNumber'],i['teacher'],i['idLesson']))
-            connection.commit()
-        connection.close()
-            
-    def _selectGroupOccupancyData(self):
-        connection = sqlite3.connect(self.path)
-        cursor = connection.cursor()
-        cursor.execute("SELECT * FROM GroupOccupancy")
-        c = cursor.fetchall()
-        connection.close()
-        return c
+        with db_ops(self.path) as cursor:
+            for i in students:
+                cursor.execute("SELECT * FROM StudentAbsences WHERE(idStudent =? AND idLesson =?)",(i['idStudent'], i['idLesson']))
+                if not cursor.fetchone():
+                    cursor.execute('INSERT INTO StudentAbsences (idStudent,name,date,topic,idGroup,phoneNumber,teacher,idLesson) VALUES(?,?,?,?,?,?,?,?)', 
+                            (i['idStudent'], i['name'],i['date'],i['topic'], i['idGroup'],i['phoneNumber'],i['teacher'],i['idLesson']))
+    def getAllLocations(self):
+        with db_ops(self.path) as cursor:
+            cursor.execute("SELECT * FROM Locations")
+            data = cursor.fetchall()
+        return self._locationTupeInList(data)
     
-    def _selectStudentAbsences(self):
-        connection = sqlite3.connect(self.path)
-        cursor = connection.cursor()
-        cursor.execute("SELECT * FROM StudentAbsences")
-        c = cursor.fetchall()
-        connection.close()
-        return c
+    def _locationTupeInList(self, data:tuple):
+        l = []
+        for i in data:
+            l.append({'id':i[0], 'name':i[1]})
+        return l
     
-    def getStudentAbsencesData(self):
-        temp = self._selectStudentAbsences()
-        studentsList = []
-        for i in temp:
+    def getRegularLessonsIds(self) ->list:
+        with db_ops(self.path) as cursor:
+            cursor.execute("SELECT * FROM RegularLessons")
+            groups = cursor.fetchall()
+        groupsIds = []
+        for i in groups:
+            groupsIds.append(i[0])
+        return groupsIds
+    
+   
+    # def _selectGroupOccupancyData(self):
+    #     connection = sqlite3.connect(self.path)
+    #     cursor = connection.cursor()
+    #     cursor.execute("SELECT * FROM GroupOccupancy")
+    #     c = cursor.fetchall()
+    #     connection.close()
+    #     return c
+    
+    # def _selectStudentAbsences(self):
+    #     connection = sqlite3.connect(self.path)
+    #     cursor = connection.cursor()
+    #     cursor.execute("SELECT * FROM StudentAbsences")
+    #     c = cursor.fetchall()
+    #     connection.close()
+    #     return c
+    
+    # def getStudentAbsencesData(self):
+    #     temp = self._selectStudentAbsences()
+    #     studentsList = []
+    #     for i in temp:
               
-              studentsList.append(
-                   {
-                        'id': i[0],
-                        'name': i[1],
-                        'date':i[2],
-                        'topic':i[3],
-                        'idGroups': i[4],
-                        'idLesson': i[5],
-                        'phoneNumber':i[6],
-                        'topic':i[7],
-                        'workOffScheduled':i[8],
-                        'dateNextConnection':i[9],
-                        'groupForWorkingOut':i[10]
-                    }
-              )
-        return studentsList
+    #           studentsList.append(
+    #                {
+    #                     'id': i[0],
+    #                     'name': i[1],
+    #                     'date':i[2],
+    #                     'topic':i[3],
+    #                     'idGroups': i[4],
+    #                     'idLesson': i[5],
+    #                     'phoneNumber':i[6],
+    #                     'topic':i[7],
+    #                     'workOffScheduled':i[8],
+    #                     'dateNextConnection':i[9],
+    #                     'groupForWorkingOut':i[10]
+    #                 }
+    #           )
+    #     return studentsList
     
-    def getGroupOccupancyData(self):
-        temp = self._selectGroupOccupancyData()
-        groupList = []
-        for i in temp:
-            groupList.append(
-            { 
-                'idsStudents' : i[0],
-                'topic' : i[1],
-                'location': i[2],
-                'teachers' : i[3],
-                'day' : i[4],
-                'time': i[5],
-                'assignWorkOffs': i[6],
-                'idGroup' : i[7],
-                'countStudents' : i[8],
-                'maxStudents': i[9],
-            }
-            )
-        return groupList
+    # def getGroupOccupancyData(self):
+    #     temp = self._selectGroupOccupancyData()
+    #     groupList = []
+    #     for i in temp:
+    #         groupList.append(
+    #         { 
+    #             'idsStudents' : i[0],
+    #             'topic' : i[1],
+    #             'location': i[2],
+    #             'teachers' : i[3],
+    #             'day' : i[4],
+    #             'time': i[5],
+    #             'assignWorkOffs': i[6],
+    #             'idGroup' : i[7],
+    #             'countStudents' : i[8],
+    #             'maxStudents': i[9],
+    #         }
+    #         )
+    #     return groupList
+
+
+
+@contextmanager
+def db_ops(db_name):
+    conn = sqlite3.connect(db_name)
+    try:
+        cur = conn.cursor()
+        yield cur
+    except Exception as e:
+        # do something with exception
+        conn.rollback()
+        raise e
+    else:
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def getDateNextWeekday(numberDay:int):
+   
+    d = datetime.timedelta( (7 + numberDay - datetime.date.today().weekday())%7 ).days
+    return  datetime.date.today() + datetime.timedelta(d)
