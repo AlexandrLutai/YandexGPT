@@ -3,7 +3,13 @@ from contextlib import contextmanager
 import datetime
 
 
+from contextlib import contextmanager
+import datetime
+
+
 class DataBase:
+    """Создаёт необходимые таблицы и предоставляет интерфейс ля работы с ними"""
+    
     """Создаёт необходимые таблицы и предоставляет интерфейс ля работы с ними"""
     
     def __init__(self):
@@ -101,17 +107,15 @@ class DataBase:
                 if not cursor.fetchone():
                     cursor.execute('INSERT INTO StudentAbsences (idStudent,name,date,topic,idGroup,phoneNumber,teacher,idLesson) VALUES(?,?,?,?,?,?,?,?)', 
                             (i['idStudent'], i['name'],i['date'],i['topic'], i['idGroup'],i['phoneNumber'],i['teacher'],i['idLesson']))
-    def getAllLocations(self)->list[dict[str:any]] :
-        with db_ops(self.path) as cursor:
-            cursor.execute("SELECT * FROM Locations")
-            data = cursor.fetchall()
-        return self._locationTupeInList(data)
     
-    def _locationTupeInList(self, data:tuple) -> list[dict[str:any]]:
-        l = []
+    def _formatLocationsOrTeachers(self, data:list[tuple]) -> dict[str:any]:
+        dicts = []
         for i in data:
-            l.append({'id':i[0], 'name':i[1]})
-        return l
+            dicts.append(self._formatLocationOrTeacher(i))
+        return dicts
+    
+    def _formatLocationOrTeacher(self, data:tuple) -> list[dict[str:any]]:
+        return {'id':data[0], 'name':data[1]}
     
     def getRegularLessonsIds(self) ->list[int]:
         with db_ops(self.path) as cursor:
@@ -127,6 +131,28 @@ class DataBase:
         for i in groups:
             allGroups.append(self._formatGroupOccupancyData(i))
         return allGroups
+    
+    
+    def _selectData(self, tableName:str, field:str = None, param = None) -> list[tuple]:
+        sql = f"SELECT * FROM {tableName}"
+        if param:
+            sql += f" WHERE({field} = {param})"
+        with db_ops(self.path) as cursor:
+            cursor.execute(sql)
+            groups = cursor.fetchall()
+        return groups
+    
+    def _fromatRegularLessons(self, lessons:list[tuple]) -> list[dict]:
+        regularLessonsList = []
+        for i in lessons:
+           regularLessonsList.append(self._formatRegularLesson(i))
+        return regularLessonsList
+
+    def _formatStudentStudentsAbsences(self, students:list[tuple]) -> list[dict[str:any]]:
+        studentsList =[]
+        for i in students:
+            studentsList.append(self._formatGroupOccupancyData(i))
+        return studentsList
     
     
     def _selectData(self, tableName:str, field:str = None, param = None) -> list[tuple]:
@@ -191,7 +217,25 @@ class DataBase:
             'lastUpdate': group[5]
         }
     
-    
+    def getAllGroupsOccupancy(self) -> str:
+        groupsOccupancy = self._formatGroupsOccupancyData(self._selectData('GroupOccupancy'))
+        string = "Доступные группы:\n"
+        for i in groupsOccupancy:
+            regularLesson = self._formatRegularLesson(self._selectData('RegularLessons', 'idGroup', i['idGroup'])[0])
+            if i['count'] < regularLesson['maxStudents']:
+                location =self._formatLocationOrTeacher(self._selectData('Locations', 'id', regularLesson['location'])[0])
+                teacher =self._formatLocationOrTeacher(self._selectData('Teachers', 'id', regularLesson['teacher'])[0])
+
+                string += f"""
+                Тема : {regularLesson['topic']}
+                Локация : {location['name']}
+                Преподаватель: {teacher['name']}
+                День недели: {getNameDay(regularLesson['day'])}
+                Время начала: {regularLesson['timeFrom']}
+                Время окончания: {regularLesson['timeTo']}
+                """
+
+        return string
     
    
     # def _selectGroupOccupancyData(self):
@@ -256,3 +300,20 @@ def getDateNextWeekday(numberDay:int):
    
     d = datetime.timedelta( (7 + numberDay - datetime.date.today().weekday())%7 ).days
     return  datetime.date.today() + datetime.timedelta(d)
+
+def getNameDay(day:int) ->str:
+    match(day):
+        case 0:
+            return 'Понедельник'
+        case 1:
+            return 'Вторник'
+        case 2:
+            return 'Среда'
+        case 3:
+            return 'Четверг'
+        case 4:
+            return 'Пятница'
+        case 5:
+            return 'Суббота'
+        case 6:
+            return 'Воскресенье'

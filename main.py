@@ -11,7 +11,7 @@ crm = AlfaCRM(autorization.crmhostname, autorization.crmEmail, autorization.crmK
 # print(crm.getData('RegularLessons', {}))
 crmManager = AlfaCRMDataManager(crm,7,14)
 
-print(db._selectData('StudentAbsences'))
+print(db.getAllGroupsOccupancy())
 
 # Связь между lessons и regularLessons устанавливается полем regularId
  
