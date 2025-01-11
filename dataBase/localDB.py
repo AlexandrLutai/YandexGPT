@@ -3,7 +3,13 @@ from contextlib import contextmanager
 import datetime
 
 
+from contextlib import contextmanager
+import datetime
+
+
 class DataBase:
+    """Создаёт необходимые таблицы и предоставляет интерфейс ля работы с ними"""
+    
     """Создаёт необходимые таблицы и предоставляет интерфейс ля работы с ними"""
     
     def __init__(self):
@@ -123,6 +129,27 @@ class DataBase:
     def _formatGroupsOccupancyData(self, groups:list) -> list[dict[str:any]]:
         allGroups = []
         for i in groups:
+            allGroups.append(self._formatGroupOccupancyData(i))
+        return allGroups
+    
+    
+    def _selectData(self, tableName:str, field:str = None, param = None) -> list[tuple]:
+        sql = f"SELECT * FROM {tableName}"
+        if param:
+            sql += f" WHERE({field} = {param})"
+        with db_ops(self.path) as cursor:
+            cursor.execute(sql)
+            groups = cursor.fetchall()
+        return groups
+    
+    def _fromatRegularLessons(self, lessons:list[tuple]) -> list[dict]:
+        regularLessonsList = []
+        for i in lessons:
+           regularLessonsList.append(self._formatRegularLesson(i))
+        return regularLessonsList
+
+    def _formatStudentStudentsAbsences(self, students:list[tuple]) -> list[dict[str:any]]:
+        studentsList =[]
             allGroups.append(self._formatGroupOccupancyData(i))
         return allGroups
     
