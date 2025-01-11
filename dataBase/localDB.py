@@ -150,8 +150,8 @@ class DataBase:
 
     def _formatStudentStudentsAbsences(self, students:list[tuple]) -> list[dict[str:any]]:
         studentsList =[]
-            allGroups.append(self._formatGroupOccupancyData(i))
-        return allGroups
+        studentsList.append(self._formatGroupOccupancyData(i))
+        return studentsList
     
     
     def _selectData(self, tableName:str, field:str = None, param = None) -> list[tuple]:
