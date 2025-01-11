@@ -9,6 +9,7 @@ import re
 class AlfaCRM: 
     def __init__(self, hostname:str, email:str, key:str):
         self._models = {
+            "RegularLessons":"regular-lesson/index",
             "Students": "customer/index",
             "Locations": "location/index",
             "Groups": "group/index",
