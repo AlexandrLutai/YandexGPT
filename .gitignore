@@ -22,7 +22,7 @@ autorizationData/*
 
 instuctions/*
 
-
+.vscode/*
 
 *.json
 *.txt
