@@ -22,105 +22,123 @@ class DataBase:
         pass
 
     def _createTables(self):
-        with db_ops(self.path) as cursor:
-            cursor.executescript(
-                '''
-                CREATE TABLE IF NOT EXISTS StudentAbsences(
-                idStudent INTEGER NOT NULL, 
-                name TEXT NOT NULL,
-                date TEXT NOT NULL,
-                topic TEXT NOT NULL,
-                idGroup TEXT NOT NULL,
-                idLesson INTEGER NOT NULL,
-                phoneNumber TEXT NOT NULL,
-                teacher INTEGER NOT NULL,
-                workOffScheduled INTEGER NOT NULL DEFAULT 0,
-                dateNextConnection TEXT DEFAULT 0,
-                dateLastConnection TEXT,
-                groupForWorkingOut INTEGER 
-                );
-                CREATE TABLE IF NOT EXISTS GroupOccupancy(
-                idGroup INTEGER,
-                newStudents TEXT,
-                idsStudents TEXT,
-                dateOfEvent TEXT,
-                count INTEGER DEFAULT 0,
-                lastUpdate TEXT 
-                );
-                CREATE TABLE IF NOT EXISTS RegularLessons(
-                idGroup INTEGER NOT NULL,
-                topic TEXT NOT NULL,
-                idsStudents TEXT,
-                location INTEGER NOT NULL,
-                teacher INTEGER NOT NULL,
-                day INTEGER NOT NULL,
-                timeFrom TEXT NOT NULL,
-                timeTo TEXT NOT NULL,
-                assignWorkOffs INTEGER DEFAULT 1,
-                maxStudents INTEGER NOT NULL,
-                lastUpdate TEXT NOT NULL
-                );
-                CREATE TABLE IF NOT EXISTS Locations(
-                id INTEGER NOT NULL,
-                name TEXT NOT NULL
-                );
-                CREATE TABLE IF NOT EXISTS Teachers(
-                id INTEGER NOT NULL,
-                name TEXT NOT NULL
+        try:
+            with db_ops(self.path) as cursor:
+                cursor.executescript(
+                    '''
+                    CREATE TABLE IF NOT EXISTS StudentAbsences(
+                    idStudent INTEGER NOT NULL, 
+                    name TEXT NOT NULL,
+                    date TEXT NOT NULL,
+                    topic TEXT NOT NULL,
+                    idGroup TEXT NOT NULL,
+                    idLesson INTEGER NOT NULL,
+                    phoneNumber TEXT NOT NULL,
+                    teacher INTEGER NOT NULL,
+                    workOffScheduled INTEGER NOT NULL DEFAULT 0,
+                    dateNextConnection TEXT DEFAULT 0,
+                    dateLastConnection TEXT,
+                    groupForWorkingOut INTEGER 
+                    );
+                    CREATE TABLE IF NOT EXISTS GroupOccupancy(
+                    idGroup INTEGER,
+                    newStudents TEXT,
+                    idsStudents TEXT,
+                    dateOfEvent TEXT,
+                    count INTEGER DEFAULT 0,
+                    lastUpdate TEXT 
+                    );
+                    CREATE TABLE IF NOT EXISTS RegularLessons(
+                    idGroup INTEGER NOT NULL,
+                    topic TEXT NOT NULL,
+                    idsStudents TEXT,
+                    location INTEGER NOT NULL,
+                    teacher INTEGER NOT NULL,
+                    day INTEGER NOT NULL,
+                    timeFrom TEXT NOT NULL,
+                    timeTo TEXT NOT NULL,
+                    assignWorkOffs INTEGER DEFAULT 1,
+                    maxStudents INTEGER NOT NULL,
+                    lastUpdate TEXT NOT NULL
+                    );
+                    CREATE TABLE IF NOT EXISTS Locations(
+                    id INTEGER NOT NULL,
+                    name TEXT NOT NULL
+                    );
+                    CREATE TABLE IF NOT EXISTS Teachers(
+                    id INTEGER NOT NULL,
+                    name TEXT NOT NULL
+                    )
+                    '''
                 )
-                '''
-            )
+        except sqlite3.Error as e:
+            print(f"Ошибка при создании таблиц: {e}")
     
 
     def addDataInTableGroupOccupancy(self) -> None:
         """
         Добавляет данные в таблицу GroupOccupancy на основе данных из таблицы RegularLessons.
         """
-        with db_ops(self.path) as cursor:
-            cursor.execute("SELECT * FROM RegularLessons")
-            regulars = cursor.fetchall()
-            for item in regulars:
-                  id= item[0]
-                  idsStudents = item[2]
-                  cursor.execute("SELECT * FROM GroupOccupancy WHERE(idGroup=?)",[int(item[0])])
-                  if not cursor.fetchone():
-                      cursor.execute("INSERT INTO GroupOccupancy (idGroup,idsStudents,dateOfEvent,count,lastUpdate) VALUES (?,?,?,?,?)", 
-                                     (id, idsStudents, getDateNextWeekday(item[5]).strftime('%Y-%m-%d'), len(item[2].split(',')), datetime.date.today()  ))
-    
+        try:
+            with db_ops(self.path) as cursor:
+                cursor.execute("SELECT * FROM RegularLessons")
+                regulars = cursor.fetchall()
+                for item in regulars:
+                    id= item[0]
+                    idsStudents = item[2]
+                    cursor.execute("SELECT * FROM GroupOccupancy WHERE(idGroup=?)",[int(item[0])])
+                    if not cursor.fetchone():
+                        cursor.execute("INSERT INTO GroupOccupancy (idGroup,idsStudents,dateOfEvent,count,lastUpdate) VALUES (?,?,?,?,?)", 
+                                        (id, idsStudents, getDateNextWeekday(item[5]).strftime('%Y-%m-%d'), len(item[2].split(',')), datetime.date.today()  ))
+        except sqlite3.Error as e:
+            print(f"Ошибка при добавлении данных в таблицу GroupOccupancy: {e}")
+   
+   
     def synchroniseTableRegularLessons(self, groups:list[dict[str:any]]) -> None:
         """
         Синхронизирует таблицу RegularLessons с предоставленными данными.
 
         :param groups: Список словарей с данными о регулярных занятиях.
         """
-        with db_ops(self.path) as cursor:
-            cursor.execute("DELETE FROM RegularLessons")
-        for i in groups:
+        try:
             with db_ops(self.path) as cursor:
-                cursor.execute('INSERT INTO RegularLessons (idGroup,topic,idsStudents,location,teacher,day,timeFrom,timeTo,maxStudents,lastUpdate) VALUES(?,?,?,?,?,?,?,?,?,?)', 
-                               (i['idGroup'], i['topic'],i['idsStudents'], i['location'],i['teacher'],i['day'],i['timeFrom'],i['timeTo'],i['maxStudents'],i['lastUpdate']))
-            
+                cursor.execute("DELETE FROM RegularLessons")
+            for i in groups:
+                with db_ops(self.path) as cursor:
+                    cursor.execute('INSERT INTO RegularLessons (idGroup,topic,idsStudents,location,teacher,day,timeFrom,timeTo,maxStudents,lastUpdate) VALUES(?,?,?,?,?,?,?,?,?,?)', 
+                                (i['idGroup'], i['topic'],i['idsStudents'], i['location'],i['teacher'],i['day'],i['timeFrom'],i['timeTo'],i['maxStudents'],i['lastUpdate']))
+        except sqlite3.Error as e:
+            print(f"Ошибка при синхронизации таблицы Teachers: {e}")      
+   
+   
     def insertNewLocation(self, data:dict) -> None:
         """
         Вставляет новую запись о локации в таблицу Locations, если запись с таким ID не существует.
 
         :param data: Словарь с данными о локации.
         """
-        with db_ops(self.path) as cursor:
-            cursor.execute("SELECT * FROM Locations WHERE(id =?)",[int(data['id'])])
-            if not cursor.fetchone():
-                cursor.execute("INSERT INTO Locations (id,name) VALUES (?,?)",[data['id'], data['name']])
-
+        try:
+            with db_ops(self.path) as cursor:
+                cursor.execute("SELECT * FROM Locations WHERE(id =?)",[int(data['id'])])
+                if not cursor.fetchone():
+                    cursor.execute("INSERT INTO Locations (id,name) VALUES (?,?)",[data['id'], data['name']])
+        except sqlite3.Error as e:
+            print(f"Ошибка при добавлении записи в таблицу location: {e}")      
+   
     def synchroniseTeachers(self, data:dict)->None:
         """
         Вставляет новую запись о локации в таблицу Locations, если запись с таким ID не существует.
 
         :param data: Словарь с данными о локации.
         """
-        with db_ops(self.path) as cursor:
-            cursor.execute("DELETE FROM Teachers")
-            for teacher in data:
-                cursor.execute("INSERT INTO Teachers (id,name) VALUES (?,?)",[teacher['id'], teacher['name']])
+        try:
+            with db_ops(self.path) as cursor:
+                cursor.execute("DELETE FROM Teachers")
+                for teacher in data:
+                    cursor.execute("INSERT INTO Teachers (id,name) VALUES (?,?)",[teacher['id'], teacher['name']])
+        except sqlite3.Error as e:
+            print(f"Ошибка при синхронизации таблицы Teachers: {e}")
+    
     
     def fillTableStudentAbsences(self, students:list) -> None:
         """
@@ -128,13 +146,16 @@ class DataBase:
 
         :param students: Список словарей с данными об отсутствии студентов.
         """
-        with db_ops(self.path) as cursor:
-            for i in students:
-                cursor.execute("SELECT * FROM StudentAbsences WHERE(idStudent =? AND idLesson =?)",(i['idStudent'], i['idLesson']))
-                if not cursor.fetchone():
-                    cursor.execute('INSERT INTO StudentAbsences (idStudent,name,date,topic,idGroup,phoneNumber,teacher,idLesson) VALUES(?,?,?,?,?,?,?,?)', 
-                            (i['idStudent'], i['name'],i['date'],i['topic'], i['idGroup'],i['phoneNumber'],i['teacher'],i['idLesson']))
-    
+        try:
+            with db_ops(self.path) as cursor:
+                for i in students:
+                    cursor.execute("SELECT * FROM StudentAbsences WHERE(idStudent =? AND idLesson =?)",(i['idStudent'], i['idLesson']))
+                    if not cursor.fetchone():
+                        cursor.execute('INSERT INTO StudentAbsences (idStudent,name,date,topic,idGroup,phoneNumber,teacher,idLesson) VALUES(?,?,?,?,?,?,?,?)', 
+                                (i['idStudent'], i['name'],i['date'],i['topic'], i['idGroup'],i['phoneNumber'],i['teacher'],i['idLesson']))
+        except sqlite3.Error as e:
+            print(f"Ошибка при заполнении таблицы StudentAbsences: {e}")   
+
     def _formatLocationsOrTeachers(self, data:list[tuple]) -> dict[str:any]:
         """
         Форматирует данные о локациях или преподавателях.
@@ -142,10 +163,13 @@ class DataBase:
         :param data: Список кортежей с данными о локациях или преподавателях.
         :return: Список словарей с отформатированными данными.
         """
-        dicts = []
-        for i in data:
-            dicts.append(self._formatLocationOrTeacher(i))
-        return dicts
+        try:
+            dicts = []
+            for i in data:
+                dicts.append(self._formatLocationOrTeacher(i))
+            return dicts
+        except sqlite3.Error as e:
+            print(f"Ошибка при форматировании данных о локациях или преподавателях: {e}")
     
     def _formatLocationOrTeacher(self, data:tuple) -> list[dict[str:any]]:
         """
@@ -162,12 +186,15 @@ class DataBase:
 
         :return: Список идентификаторов регулярных занятий.
         """
-        with db_ops(self.path) as cursor:
-            cursor.execute("SELECT * FROM RegularLessons")
-            groups = cursor.fetchall()
-        groupsIds = []
-        for i in groups:
-            groupsIds.append(i[0])
+        try:
+            with db_ops(self.path) as cursor:
+                cursor.execute("SELECT * FROM RegularLessons")
+                groups = cursor.fetchall()
+            groupsIds = []
+            for i in groups:
+                groupsIds.append(i[0])
+        except sqlite3.Error as e:
+            print(f"Ошибка при получении идентификаторов регулярных занятий: {e}")
         return groupsIds
     
     def _formatGroupsOccupancyData(self, groups:list) -> list[dict[str:any]]:
@@ -192,15 +219,18 @@ class DataBase:
         :param param: Значение для условия WHERE.
         :return: Список кортежей с результатами запроса.
         """
-        sql = f"SELECT * FROM {tableName}"
-        params = ()
-        if param:
-            sql += f" WHERE {field} = ?"
-            params = (param,) 
-        with db_ops(self.path) as cursor:
-            cursor.execute(sql, params)
-            groups = cursor.fetchall()
-        return groups
+        try:
+            sql = f"SELECT * FROM {tableName}"
+            params = ()
+            if param:
+                sql += f" WHERE {field} = ?"
+                params = (param,) 
+            with db_ops(self.path) as cursor:
+                cursor.execute(sql, params)
+                groups = cursor.fetchall()
+            return groups
+        except sqlite3.Error as e:
+            print(f"Ошибка при выполнении SELECT запроса: {e}")       
     
     def _fromatRegularLessons(self, lessons:list[tuple]) -> list[dict]:
         """
@@ -236,13 +266,16 @@ class DataBase:
         :param param: Значение для условия WHERE.
         :return: Список кортежей с результатами запроса.
         """
-        sql = f"SELECT * FROM {tableName}"
-        if param:
-            sql += f" WHERE({field} = {param})"
-        with db_ops(self.path) as cursor:
-            cursor.execute(sql)
-            groups = cursor.fetchall()
-        return groups
+        try:
+            sql = f"SELECT * FROM {tableName}"
+            if param:
+                sql += f" WHERE({field} = {param})"
+            with db_ops(self.path) as cursor:
+                cursor.execute(sql)
+                groups = cursor.fetchall()
+            return groups
+        except sqlite3.Error as e:
+            print(f"Ошибка при выполнении SELECT запроса: {e}")
     
     def _fromatRegularLessons(self, lessons:list[tuple]) -> list[dict]:
         """
@@ -256,7 +289,7 @@ class DataBase:
            regularLessonsList.append(self._formatRegularLesson(i))
         return regularLessonsList
 
-    def _formatStudentStudentsAbsences(self, students:list[tuple]) -> list[dict[str:any]]:
+    def _formatStudentAbsences(self, students:list[tuple]) -> list[dict[str:any]]:
         """
         Форматирует данные об отсутствии студентов.
 
