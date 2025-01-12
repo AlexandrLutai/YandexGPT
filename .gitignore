@@ -16,10 +16,12 @@ dist/
 
 # Контрольные точки в Jupyter notebook лучше оставить в стороне
 .ipynb_checkpoints
-
+ins
 autorizationData/
 
-*json
-*.txt
+instuctions/
 
+*.json
+*.txt
 *.db
+
