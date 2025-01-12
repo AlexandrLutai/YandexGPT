@@ -193,46 +193,7 @@ class DataBase:
     
     
     
-   
-    # def _selectGroupOccupancyData(self):
-    #     connection = sqlite3.connect(self.path)
-    #     cursor = connection.cursor()
-    #     cursor.execute("SELECT * FROM GroupOccupancy")
-    #     c = cursor.fetchall()
-    #     connection.close()
-    #     return c
-    
-    # def _selectStudentAbsences(self):
-    #     connection = sqlite3.connect(self.path)
-    #     cursor = connection.cursor()
-    #     cursor.execute("SELECT * FROM StudentAbsences")
-    #     c = cursor.fetchall()
-    #     connection.close()
-    #     return c
-    
-    # def getStudentAbsencesData(self):
-    #     temp = self._selectStudentAbsences()
-    #     studentsList = []
-    #     for i in temp:
-              
-    #           studentsList.append(
-    #                {
-    #                     'id': i[0],
-    #                     'name': i[1],
-    #                     'date':i[2],
-    #                     'topic':i[3],
-    #                     'idGroups': i[4],
-    #                     'idLesson': i[5],
-    #                     'phoneNumber':i[6],
-    #                     'topic':i[7],
-    #                     'workOffScheduled':i[8],
-    #                     'dateNextConnection':i[9],
-    #                     'groupForWorkingOut':i[10]
-    #                 }
-    #           )
-    #     return studentsList
-    
-    
+  
 
 
 
