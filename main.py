@@ -1,7 +1,7 @@
 import autorizationData.authorizationData as autorization
 
 from crm.alfaCRM import AlfaCRM, AlfaCRMDataManager, AlfaCRMDBManager
-from dataBase.localDB import DataBase, getDateNextWeekday
+from dataBase.DataBase import DataBase, getDateNextWeekday
 
 
 
