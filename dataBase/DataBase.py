@@ -10,10 +10,14 @@ import datetime
 class DataBase:
     """Создаёт необходимые таблицы и предоставляет интерфейс ля работы с ними"""
     
-    """Создаёт необходимые таблицы и предоставляет интерфейс ля работы с ними"""
     
-    def __init__(self):
-        self.path ="dataBase/dataBases/dataBase.db"
+    def __init__(self,path: str ):
+        """
+        Инициализирует объект базы данных.
+        
+        :param path: Путь к файлу базы данных.
+        """
+        self.path = path
         self._createTables()
         pass
 
@@ -69,6 +73,9 @@ class DataBase:
     
 
     def addDataInTableGroupOccupancy(self) -> None:
+        """
+        Добавляет данные в таблицу GroupOccupancy на основе данных из таблицы RegularLessons.
+        """
         with db_ops(self.path) as cursor:
             cursor.execute("SELECT * FROM RegularLessons")
             regulars = cursor.fetchall()
@@ -81,6 +88,11 @@ class DataBase:
                                      (id, idsStudents, getDateNextWeekday(item[5]).strftime('%Y-%m-%d'), len(item[2].split(',')), datetime.date.today()  ))
     
     def synchroniseTableRegularLessons(self, groups:list[dict[str:any]]) -> None:
+        """
+        Синхронизирует таблицу RegularLessons с предоставленными данными.
+
+        :param groups: Список словарей с данными о регулярных занятиях.
+        """
         with db_ops(self.path) as cursor:
             cursor.execute("DELETE FROM RegularLessons")
         for i in groups:
@@ -89,18 +101,33 @@ class DataBase:
                                (i['idGroup'], i['topic'],i['idsStudents'], i['location'],i['teacher'],i['day'],i['timeFrom'],i['timeTo'],i['maxStudents'],i['lastUpdate']))
             
     def insertNewLocation(self, data:dict) -> None:
+        """
+        Вставляет новую запись о локации в таблицу Locations, если запись с таким ID не существует.
+
+        :param data: Словарь с данными о локации.
+        """
         with db_ops(self.path) as cursor:
             cursor.execute("SELECT * FROM Locations WHERE(id =?)",[int(data['id'])])
             if not cursor.fetchone():
                 cursor.execute("INSERT INTO Locations (id,name) VALUES (?,?)",[data['id'], data['name']])
 
     def synchroniseTeachers(self, data:dict)->None:
+        """
+        Вставляет новую запись о локации в таблицу Locations, если запись с таким ID не существует.
+
+        :param data: Словарь с данными о локации.
+        """
         with db_ops(self.path) as cursor:
             cursor.execute("DELETE FROM Teachers")
             for teacher in data:
                 cursor.execute("INSERT INTO Teachers (id,name) VALUES (?,?)",[teacher['id'], teacher['name']])
     
     def fillTableStudentAbsences(self, students:list) -> None:
+        """
+        Заполняет таблицу StudentAbsences данными об отсутствии студентов.
+
+        :param students: Список словарей с данными об отсутствии студентов.
+        """
         with db_ops(self.path) as cursor:
             for i in students:
                 cursor.execute("SELECT * FROM StudentAbsences WHERE(idStudent =? AND idLesson =?)",(i['idStudent'], i['idLesson']))
@@ -109,15 +136,32 @@ class DataBase:
                             (i['idStudent'], i['name'],i['date'],i['topic'], i['idGroup'],i['phoneNumber'],i['teacher'],i['idLesson']))
     
     def _formatLocationsOrTeachers(self, data:list[tuple]) -> dict[str:any]:
+        """
+        Форматирует данные о локациях или преподавателях.
+
+        :param data: Список кортежей с данными о локациях или преподавателях.
+        :return: Список словарей с отформатированными данными.
+        """
         dicts = []
         for i in data:
             dicts.append(self._formatLocationOrTeacher(i))
         return dicts
     
     def _formatLocationOrTeacher(self, data:tuple) -> list[dict[str:any]]:
+        """
+        Форматирует данные о локации или преподавателе.
+
+        :param data: Кортеж с данными о локации или преподавателе.
+        :return: Словарь с отформатированными данными.
+        """
         return {'id':data[0], 'name':data[1]}
     
     def getRegularLessonsIds(self) ->list[int]:
+        """
+        Возвращает список идентификаторов всех регулярных занятий.
+
+        :return: Список идентификаторов регулярных занятий.
+        """
         with db_ops(self.path) as cursor:
             cursor.execute("SELECT * FROM RegularLessons")
             groups = cursor.fetchall()
@@ -127,6 +171,12 @@ class DataBase:
         return groupsIds
     
     def _formatGroupsOccupancyData(self, groups:list) -> list[dict[str:any]]:
+        """
+        Форматирует данные о заполненности групп.
+
+        :param groups: Список кортежей с данными о заполненности групп.
+        :return: Список словарей с отформатированными данными.
+        """
         allGroups = []
         for i in groups:
             allGroups.append(self._formatGroupOccupancyData(i))
@@ -134,21 +184,43 @@ class DataBase:
     
     
     def _selectData(self, tableName:str, field:str = None, param = None) -> list[tuple]:
+        """
+        Выполняет SELECT запрос к базе данных.
+
+        :param tableName: Название таблицы.
+        :param field: Поле для условия WHERE.
+        :param param: Значение для условия WHERE.
+        :return: Список кортежей с результатами запроса.
+        """
         sql = f"SELECT * FROM {tableName}"
+        params = ()
         if param:
-            sql += f" WHERE({field} = {param})"
+            sql += f" WHERE {field} = ?"
+            params = (param,) 
         with db_ops(self.path) as cursor:
-            cursor.execute(sql)
+            cursor.execute(sql, params)
             groups = cursor.fetchall()
         return groups
     
     def _fromatRegularLessons(self, lessons:list[tuple]) -> list[dict]:
+        """
+        Форматирует данные о регулярных занятиях.
+
+        :param lessons: Список кортежей с данными о регулярных занятиях.
+        :return: Список словарей с отформатированными данными о регулярных занятиях.
+        """
         regularLessonsList = []
         for i in lessons:
            regularLessonsList.append(self._formatRegularLesson(i))
         return regularLessonsList
 
     def _formatStudentStudentsAbsences(self, students:list[tuple]) -> list[dict[str:any]]:
+        """
+        Форматирует данные об отсутствии студентов.
+
+        :param students: Список кортежей с данными об отсутствии студентов.
+        :return: Список словарей с отформатированными данными об отсутствии студентов.
+        """
         studentsList =[]
         for i in students:
             studentsList.append(self._formatGroupOccupancyData(i))
@@ -156,6 +228,14 @@ class DataBase:
     
     
     def _selectData(self, tableName:str, field:str = None, param = None) -> list[tuple]:
+        """
+        Выполняет SELECT запрос к базе данных.
+
+        :param tableName: Название таблицы.
+        :param field: Поле для условия WHERE.
+        :param param: Значение для условия WHERE.
+        :return: Список кортежей с результатами запроса.
+        """
         sql = f"SELECT * FROM {tableName}"
         if param:
             sql += f" WHERE({field} = {param})"
@@ -165,18 +245,36 @@ class DataBase:
         return groups
     
     def _fromatRegularLessons(self, lessons:list[tuple]) -> list[dict]:
+        """
+        Форматирует данные о регулярном занятии.
+
+        :param lesson: Кортеж с данными о регулярном занятии.
+        :return: Словарь с отформатированными данными о регулярном занятии.
+        """
         regularLessonsList = []
         for i in lessons:
            regularLessonsList.append(self._formatRegularLesson(i))
         return regularLessonsList
 
     def _formatStudentStudentsAbsences(self, students:list[tuple]) -> list[dict[str:any]]:
+        """
+        Форматирует данные об отсутствии студентов.
+
+        :param students: Список кортежей с данными об отсутствии студентов.
+        :return: Список словарей с отформатированными данными об отсутствии студентов.
+        """
         studentsList =[]
         for i in students:
             studentsList.append(i)
         return studentsList
     
     def _formatRegularLesson(self, lesson:tuple) -> dict[str:any]:
+        """
+        Форматирует данные о регулярном занятии.
+
+        :param lesson: Кортеж с данными о регулярном занятии.
+        :return: Словарь с отформатированными данными о регулярном занятии.
+        """
         return {
             'id' : lesson[0],
             'topic' : lesson[1],
@@ -192,6 +290,12 @@ class DataBase:
         }
     
     def _formatStudentStudentAbsences(self, student:tuple) -> dict[str:any]:
+        """
+        Форматирует данные об отсутствии студента.
+
+        :param student: Кортеж с данными об отсутствии студента.
+        :return: Словарь с отформатированными данными об отсутствии студента.
+        """
         return {
             'idStudent': student[0],
             'name' : student[1],
@@ -208,6 +312,12 @@ class DataBase:
 
         }
     def _formatGroupOccupancyData(self, group:tuple) -> dict:
+        """
+    Форматирует данные о заполненности групп.
+
+    :param data: Список кортежей с данными о заполненности групп.
+    :return: Список словарей с отформатированными данными.
+    """
         return{
             'idGroup': group[0],
             'newStudents': group[1],
@@ -218,6 +328,11 @@ class DataBase:
         }
     
     def getAllGroupsOccupancy(self) -> str:
+        """
+        Возвращает строку с информацией о заполненности всех групп.
+
+        :return: Строка с информацией о заполненности всех групп.
+        """
         groupsOccupancy = self._formatGroupsOccupancyData(self._selectData('GroupOccupancy'))
         string = "Доступные группы:\n"
         for i in groupsOccupancy:
@@ -234,8 +349,8 @@ class DataBase:
                 Время начала: {regularLesson['timeFrom']}
                 Время окончания: {regularLesson['timeTo']}
                 """
-
         return string
+   
     
    
     # def _selectGroupOccupancyData(self):

@@ -1,6 +1,6 @@
 import requests
 import json
-from dataBase.localDB import DataBase
+from dataBase.DataBase import DataBase
 class YandexGPTModel:
 
     def __init__(self, authKey, cloudBranch,temperature:float = 0.3):

@@ -1,7 +1,7 @@
 import requests
 import json
 from datetime import date, timedelta,datetime
-from dataBase.localDB import DataBase
+from dataBase.DataBase import DataBase
 import re
 # Разобраться с хэшированием 
 #Дописать функции получения данных из разных таблиц.
