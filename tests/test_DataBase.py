@@ -106,5 +106,23 @@ class TestDataBase(unittest.TestCase):
             result = cursor.fetchone()
             self.assertEqual(result, ('Science', 25))
 
+    def test_getStudentAbsences(self):
+        # Insert initial data
+        with db_ops(self.test_db_path) as cursor:
+            cursor.execute('INSERT INTO RegularLessons (idGroup, topic, idsStudents, location, teacher, day, timeFrom, timeTo, maxStudents, lastUpdate) VALUES (1, "Math", "1,2,3", 1, 1, 1, "10:00", "12:00", 30, "2023-01-01")')
+            cursor.execute('INSERT INTO Locations (id, name) VALUES (1, "Room 101")')
+            cursor.execute('INSERT INTO Teachers (id, name) VALUES (1, "John Doe")')
+            cursor.execute('INSERT INTO StudentAbsences (idStudent, name, date, topic, idGroup, idLesson, phoneNumber, teacher, workOffScheduled) VALUES (1, "Alice", "2023-01-01", "Math", 1, 1, "1234567890", 1, 0)')
+        
+        # Get student absences
+        absences = self.db.getStudentAbsences()
+        
+        # Verify absences
+        self.assertEqual(len(absences), 1)
+        self.assertIn('Alice', absences[0]['text'])
+        self.assertIn('Math', absences[0]['text'])
+        self.assertIn('Room 101', absences[0]['text'])
+        self.assertIn('John Doe', absences[0]['text'])
+
 if __name__ == '__main__':
     unittest.main()

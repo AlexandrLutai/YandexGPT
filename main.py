@@ -12,7 +12,7 @@ crm = AlfaCRM(autorization.crmhostname, autorization.crmEmail, autorization.crmK
 crmManager = AlfaCRMDataManager(crm,7,14)
 
 print(db.updateData({'name': 'Test'}, 'Teachers', {'id': 1}))
-
+print(db.getStudentAbsences())
 # Связь между lessons и regularLessons устанавливается полем regularId
  
 crmToDBManager = AlfaCRMDBManager(db, crmManager)

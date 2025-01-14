@@ -271,17 +271,6 @@ class DataBase:
            regularLessonsList.append(self._formatRegularLesson(i))
         return regularLessonsList
 
-    def _formatStudentStudentsAbsences(self, students:list[tuple]) -> list[dict[str:any]]:
-        """
-        Форматирует данные об отсутствии студентов.
-
-        :param students: Список кортежей с данными об отсутствии студентов.
-        :return: Список словарей с отформатированными данными об отсутствии студентов.
-        """
-        studentsList =[]
-        for i in students:
-            studentsList.append(self._formatGroupOccupancyData(i))
-        return studentsList
     
     
     def _selectData(self, tableName:str, field:str = None, param = None) -> list[tuple]:
@@ -316,7 +305,7 @@ class DataBase:
            regularLessonsList.append(self._formatRegularLesson(i))
         return regularLessonsList
 
-    def _formatStudentAbsences(self, students:list[tuple]) -> list[dict[str:any]]:
+    def _formatStudentsAbsences(self, students:list[tuple]) -> list[dict[str:any]]:
         """
         Форматирует данные об отсутствии студентов.
 
@@ -325,7 +314,7 @@ class DataBase:
         """
         studentsList =[]
         for i in students:
-            studentsList.append(i)
+            studentsList.append(self._formatStudentAbsence(i))
         return studentsList
     
     def _formatRegularLesson(self, lesson:tuple) -> dict[str:any]:
@@ -349,7 +338,7 @@ class DataBase:
             'lastUpdate' : lesson[10]
         }
     
-    def _formatStudentStudentAbsences(self, student:tuple) -> dict[str:any]:
+    def _formatStudentAbsence(self, student:tuple) -> dict[str:any]:
         """
         Форматирует данные об отсутствии студента.
 
@@ -387,73 +376,63 @@ class DataBase:
             'lastUpdate': group[5]
         }
     
-    def getAllGroupsOccupancy(self) -> str:
+    def getAllGroupsOccupancy(self, idGroup: bool = None) -> str:
         """
-        Возвращает строку с информацией о заполненности всех групп.
-
-        :return: Строка с информацией о заполненности всех групп.
+        Возвращает строку с информацией о доступных группах.
+        Параметры:
+        idGroup (bool): Идентификатор группы для фильтрации (по умолчанию None).
+        Возвращает:
+        str: Строка с информацией о доступных группах, включая тему, локацию, преподавателя, день недели и время занятий.
         """
         groupsOccupancy = self._formatGroupsOccupancyData(self._selectData('GroupOccupancy'))
         string = "Доступные группы:\n"
         for i in groupsOccupancy:
             regularLesson = self._formatRegularLesson(self._selectData('RegularLessons', 'idGroup', i['idGroup'])[0])
-            if i['count'] < regularLesson['maxStudents']:
-                location =self._formatLocationOrTeacher(self._selectData('Locations', 'id', regularLesson['location'])[0])
-                teacher =self._formatLocationOrTeacher(self._selectData('Teachers', 'id', regularLesson['teacher'])[0])
+            if idGroup != regularLesson['idGroup']:
+                if i['count'] < regularLesson['maxStudents']:
+                    location =self._formatLocationOrTeacher(self._selectData('Locations', 'id', regularLesson['location'])[0])
+                    teacher =self._formatLocationOrTeacher(self._selectData('Teachers', 'id', regularLesson['teacher'])[0])
 
-                string += f"""
-                Тема : {regularLesson['topic']}
-                Локация : {location['name']}
-                Преподаватель: {teacher['name']}
-                День недели: {getNameDay(regularLesson['day'])}
-                Время начала: {regularLesson['timeFrom']}
-                Время окончания: {regularLesson['timeTo']}
-                """
+                    string += f"""
+                    Тема : {regularLesson['topic']}
+                    Локация : {location['name']}
+                    Преподаватель: {teacher['name']}
+                    День недели: {getNameDay(regularLesson['day'])}
+                    Время начала: {regularLesson['timeFrom']}
+                    Время окончания: {regularLesson['timeTo']}
+                    """
         return string
    
-    
-   
-    # def _selectGroupOccupancyData(self):
-    #     connection = sqlite3.connect(self.path)
-    #     cursor = connection.cursor()
-    #     cursor.execute("SELECT * FROM GroupOccupancy")
-    #     c = cursor.fetchall()
-    #     connection.close()
-    #     return c
-    
-    # def _selectStudentAbsences(self):
-    #     connection = sqlite3.connect(self.path)
-    #     cursor = connection.cursor()
-    #     cursor.execute("SELECT * FROM StudentAbsences")
-    #     c = cursor.fetchall()
-    #     connection.close()
-    #     return c
-    
-    # def getStudentAbsencesData(self):
-    #     temp = self._selectStudentAbsences()
-    #     studentsList = []
-    #     for i in temp:
-              
-    #           studentsList.append(
-    #                {
-    #                     'id': i[0],
-    #                     'name': i[1],
-    #                     'date':i[2],
-    #                     'topic':i[3],
-    #                     'idGroups': i[4],
-    #                     'idLesson': i[5],
-    #                     'phoneNumber':i[6],
-    #                     'topic':i[7],
-    #                     'workOffScheduled':i[8],
-    #                     'dateNextConnection':i[9],
-    #                     'groupForWorkingOut':i[10]
-    #                 }
-    #           )
-    #     return studentsList
-    
-    
 
-
+    def getStudentAbsences(self) -> list[dict[str:any]]:
+        """
+        Возвращает список отсутствий студентов с подробной информацией.
+        Метод извлекает данные об отсутствиях студентов, форматирует их и добавляет
+        информацию о регулярных занятиях, местоположении и преподавателе.
+        Returns:
+            list[dict[str:any]]: Список словарей, содержащих текстовую информацию об отсутствии
+            студентов и идентификатор группы. Каждый словарь имеет следующие ключи:
+                - 'text' (str): Текстовая информация об отсутствии студента.
+                - 'idGroup' (any): Идентификатор группы студента.
+        """
+        
+        studentAbsences = self._formatStudentsAbsences(self._selectData('StudentAbsences', 'workOffScheduled', 0)) 
+        students = []
+        for i in studentAbsences:
+                regularLesson = self._formatRegularLesson(self._selectData('RegularLessons', 'idGroup', i['idGroup'])[0])
+                location =self._formatLocationOrTeacher(self._selectData('Locations', 'id', regularLesson['location'])[0])
+                teacher =self._formatLocationOrTeacher(self._selectData('Teachers', 'id', regularLesson['teacher'])[0])
+                string = f"""
+                Имя: {i['name']}
+                Тема: {i['topic']}
+                Локация: {location['name']}
+                Преподаватель: {teacher['name']}
+                Дата: {i['date']}
+                Телефон: {i['phoneNumber']}
+                """
+                students.append({'text':string, 'idGroup': i['idGroup']})
+        return students
+    
 
 @contextmanager
 def db_ops(db_name):
