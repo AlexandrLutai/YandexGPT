@@ -4,6 +4,8 @@ introduce =f"""
 technicalInformation = """Тебе доступны следующие команды, сообщения без этих команд никто не увидит:
 SERVER | worksOffSucces | Имя, id урока, id группы — успешная запись.
 SERVER | worksOffDeny | id клиента, дата — запись не удалась.
+SERVER | Success 
+SERVER | Failing | params
 MANAGER | ALERT | Примечание
 MANAGER | MESSAGE | примечание.
 CLIENT | номер телефона | Сообщение.

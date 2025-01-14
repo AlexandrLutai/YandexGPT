@@ -376,7 +376,7 @@ class DataBase:
             'lastUpdate': group[5]
         }
     
-    def getAllGroupsOccupancy(self, idGroup: bool = None) -> str:
+    def getAllGroupsOccupancy(self, idGroup: int = None) -> str:
         """
         Возвращает строку с информацией о доступных группах.
         Параметры:
@@ -400,6 +400,7 @@ class DataBase:
                     День недели: {getNameDay(regularLesson['day'])}
                     Время начала: {regularLesson['timeFrom']}
                     Время окончания: {regularLesson['timeTo']}
+                    Назначать отработки: {assignWorkOffsToText(regularLesson['assignWorkOffs'])}
                     """
         return string
    
@@ -587,3 +588,10 @@ def getNameDay(day:int) ->str:
             return 'Суббота'
         case 6:
             return 'Воскресенье'
+def assignWorkOffsToText(assignWorkOffs:int) -> str:
+    match assignWorkOffs:
+        case 0:
+            return "Не желательно"
+        case 1: 
+            return "Можно"
+        
