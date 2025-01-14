@@ -433,6 +433,20 @@ class DataBase:
                 students.append({'text':string, 'idGroup': i['idGroup']})
         return students
     
+    def deleteData(self, tableName:str, field:str, param) -> None:
+        """
+        Удаляет данные из указанной таблицы.
+
+        :param tableName: Название таблицы.
+        :param field: Поле для условия WHERE.
+        :param param: Значение для условия WHERE.
+        """
+        try:
+            with db_ops(self.path) as cursor:
+                cursor.execute(f"DELETE FROM {tableName} WHERE {field} = ?", [param])
+        except sqlite3.Error as e:
+            print(f"Ошибка при удалении данных из таблицы {tableName}: {e}")
+    
 
 @contextmanager
 def db_ops(db_name):
