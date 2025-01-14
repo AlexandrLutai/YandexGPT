@@ -6,13 +6,13 @@ from dataBase.DataBase import DataBase, getDateNextWeekday
 
 
 
-db = DataBase()
+db = DataBase('dataBase/dataBases/dataBase.db')
 crm = AlfaCRM(autorization.crmhostname, autorization.crmEmail, autorization.crmKey)
 # print(crm.getData('RegularLessons', {}))
 crmManager = AlfaCRMDataManager(crm,7,14)
 
-print(db.getAllGroupsOccupancy())
-
+print(db.updateData({'name': 'Test'}, 'Teachers', {'id': 1}))
+print(db.getStudentAbsences())
 # Связь между lessons и regularLessons устанавливается полем regularId
  
 crmToDBManager = AlfaCRMDBManager(db, crmManager)
