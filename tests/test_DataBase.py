@@ -90,5 +90,21 @@ class TestDataBase(unittest.TestCase):
             result = cursor.fetchone()
             self.assertIsNotNone(result)
 
+    def test_updateData(self):
+        # Insert initial data
+        with db_ops(self.test_db_path) as cursor:
+            cursor.execute('INSERT INTO RegularLessons (idGroup, topic, idsStudents, location, teacher, day, timeFrom, timeTo, maxStudents, lastUpdate) VALUES (1, "Math", "1,2,3", 1, 1, 1, "10:00", "12:00", 30, "2023-01-01")')
+        
+        # Update data
+        update_data = {'topic': 'Science', 'maxStudents': 25}
+        select_params = {'idGroup': 1}
+        self.db.updateData(update_data, 'RegularLessons', select_params)
+        
+        # Verify update
+        with db_ops(self.test_db_path) as cursor:
+            cursor.execute("SELECT topic, maxStudents FROM RegularLessons WHERE idGroup=1")
+            result = cursor.fetchone()
+            self.assertEqual(result, ('Science', 25))
+
 if __name__ == '__main__':
     unittest.main()

@@ -232,6 +232,33 @@ class DataBase:
         except sqlite3.Error as e:
             print(f"Ошибка при выполнении SELECT запроса: {e}")       
     
+    def updateData(self, data:dict[str:any],  tableName:str, selectPams:dict[str:any] = None) -> None:
+        """
+        Обновляет данные в указанной таблице.
+
+        :param data: Словарь с данными для обновления.
+        :param tableName: Название таблицы.
+        :param selectPams: Словарь с параметрами для условия WHERE.
+        """
+        try:
+            set_clause = ", ".join([f"{key} = ?" for key in data.keys()])
+            params = list(data.values())
+
+            if selectPams:
+                where_clause = " AND ".join([f"{key} = ?" for key in selectPams.keys()])
+                params.extend(selectPams.values())
+                sql = f"UPDATE {tableName} SET {set_clause} WHERE {where_clause}"
+            else:
+                sql = f"UPDATE {tableName} SET {set_clause}"
+
+            with db_ops(self.path) as cursor:
+                cursor.execute(sql, params)
+        except sqlite3.Error as e:
+            print(f"Ошибка при обновлении данных в таблице {tableName}: {e}")
+      
+       
+
+       
     def _fromatRegularLessons(self, lessons:list[tuple]) -> list[dict]:
         """
         Форматирует данные о регулярных занятиях.
