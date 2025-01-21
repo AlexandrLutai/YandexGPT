@@ -49,6 +49,92 @@
 - `synchroniseRegularLessons(self)`: Синхронизация регулярных уроков.
 - `insertInStudentAbsences(self)`: Вставка данных об отсутствующих студентах.
 
+# Техническая документация
+
+## DataBase.py
+
+### Описание
+
+Этот файл содержит класс для работы с локальной базой данных SQLite. Основной класс:
+
+- `DataBase`: Класс для управления базой данных.
+
+### Классы и методы
+
+#### DataBase
+
+- `__init__(self, path: str)`: Инициализация класса и создание необходимых таблиц.
+- `_createTables(self)`: Создание таблиц в базе данных.
+- `addDataInTableGroupOccupancy(self) -> None`: Добавление данных в таблицу GroupOccupancy на основе данных из таблицы RegularLessons.
+- `synchroniseTableRegularLessons(self, groups: list[dict[str: any]]) -> None`: Синхронизация таблицы RegularLessons с предоставленными данными.
+- `insertNewLocation(self, data: dict) -> None`: Вставка новой локации в таблицу Locations, если запись с таким ID не существует.
+- `synchroniseTeachers(self, data: dict) -> None`: Синхронизация таблицы Teachers с предоставленными данными.
+- `fillTableStudentAbsences(self, students: list) -> None`: Заполнение таблицы StudentAbsences данными об отсутствии студентов.
+- `getRegularLessonsIds(self) -> list[int]`: Получение списка идентификаторов всех регулярных занятий.
+- `_selectData(self, tableName: str, field: str = None, param = None) -> list[tuple]`: Выполнение SELECT запроса к базе данных.
+- `_formatLocationsOrTeachers(self, data: list[tuple]) -> list[dict[str: any]]`: Форматирование данных о локациях или преподавателях.
+- `_formatLocationOrTeacher(self, data: tuple) -> dict[str: any]`: Форматирование данных о локации или преподавателе.
+- `_formatGroupsOccupancyData(self, groups: list) -> list[dict[str: any]]`: Форматирование данных о заполненности групп.
+- `_formatGroupOccupancyData(self, group: tuple) -> dict[str: any]`: Форматирование данных о заполненности группы.
+- `_fromatRegularLessons(self, lessons: list[tuple]) -> list[dict[str: any]]`: Форматирование данных о регулярных занятиях.
+- `_formatRegularLesson(self, lesson: tuple) -> dict[str: any]`: Форматирование данных о регулярном занятии.
+- `_formatStudentAbsences(self, students: list[tuple]) -> list[dict[str: any]]`: Форматирование данных об отсутствии студентов.
+- `_formatStudentStudentAbsences(self, student: tuple) -> dict[str: any]`: Форматирование данных об отсутствии студента.
+- `getAllGroupsOccupancy(self) -> str`: Возвращает строку с информацией о заполненности всех групп.
+
+### Форматирование данных
+
+#### `_formatLocationsOrTeachers`
+
+Возвращает список словарей с отформатированными данными о локациях или преподавателях. Поля:
+
+- `id`: Идентификатор.
+- `name`: Имя.
+
+#### `_formatGroupOccupancyData`
+
+Возвращает словарь с отформатированными данными о заполненности группы. Поля:
+
+- `idGroup`: Идентификатор группы.
+- `newStudents`: Новые студенты.
+- `idsStudents`: Идентификаторы студентов.
+- `dateOfEvent`: Дата события.
+- `count`: Количество.
+- `lastUpdate`: Последнее обновление.
+
+#### `_formatRegularLesson`
+
+Возвращает словарь с отформатированными данными о регулярном занятии. Поля:
+
+- `id`: Идентификатор.
+- `topic`: Тема.
+- `idsStudents`: Идентификаторы студентов.
+- `location`: Локация.
+- `teacher`: Преподаватель.
+- `day`: День.
+- `timeFrom`: Время начала.
+- `timeTo`: Время окончания.
+- `assignWorkOffs`: Назначение отработок.
+- `maxStudents`: Максимальное количество студентов.
+- `lastUpdate`: Последнее обновление.
+
+#### `_formatStudentAbsences`
+
+Возвращает список словарей с отформатированными данными об отсутствии студентов. Поля:
+
+- `idStudent`: Идентификатор студента.
+- `name`: Имя.
+- `date`: Дата.
+- `topic`: Тема.
+- `idGroup`: Идентификатор группы.
+- `idLesson`: Идентификатор урока.
+- `phoneNumber`: Номер телефона.
+- `teacher`: Преподаватель.
+- `workOffScheduled`: Запланированная отработка.
+- `dateNextConnection`: Дата следующего соединения.
+- `dateLastConnection`: Дата последнего соединения.
+- `groupForWorkingOut`: Группа для отработки.
+
 ### Примечания
 
 - Убедитесь, что у вас есть доступ к API AlfaCRM и необходимые учетные данные.

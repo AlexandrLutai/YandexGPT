@@ -1,21 +1,30 @@
 import autorizationData.authorizationData as autorization
 
 from crm.alfaCRM import AlfaCRM, AlfaCRMDataManager, AlfaCRMDBManager
-from dataBase.DataBase import DataBase, getDateNextWeekday
+from dataBase.DataBase import DataBase, ContextDataBase
+from YandexGPT.yandexGPT import YandexGPTChatBot, YandexGPTModel
 
+import json
 
-
-
-db = DataBase()
+db = DataBase('dataBase/dataBases/dataBase.db')
+contextDb = ContextDataBase("dataBase/dataBases/contextDataBase.db")
 crm = AlfaCRM(autorization.crmhostname, autorization.crmEmail, autorization.crmKey)
-# print(crm.getData('RegularLessons', {}))
 crmManager = AlfaCRMDataManager(crm,7,14)
 
-print(db.getAllGroupsOccupancy())
+model = YandexGPTModel(autorization.yandexGPTKey,autorization.yandexCloudIdentificator)
 
+chatBot = YandexGPTChatBot(model, db,contextDb)
+student = db.getStudentAbsences()
+groups = db.getAllGroupsOccupancy(student[0]['idGroup'])
+string = groups + "\n"+student[0]['text']
+print(chatBot.sendRequest('worksOff', '8943543443',{'role':"system", "text":string}))
 # Связь между lessons и regularLessons устанавливается полем regularId
  
-crmToDBManager = AlfaCRMDBManager(db, crmManager)
+while(True):
+    message = input()
+    print(chatBot.sendRequest('worksOff', '8943543443',{'role':"user", "text":message}))
+
+
 
 
 #Синхронизация бд и CRM
