@@ -13,7 +13,7 @@ class TestYandexGPTModel(unittest.TestCase):
 
         model = YandexGPTModel('fake_auth_key', 'fake_cloud_branch')
         messages = [{"role": "user", "text": "Hello"}]
-        response = model.gptRequest(messages)
+        response = model.request(messages)
 
         self.assertEqual(response, '{"response": "test response"}')
         mock_post.assert_called_once()

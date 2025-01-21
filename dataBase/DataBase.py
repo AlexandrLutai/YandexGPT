@@ -325,7 +325,7 @@ class DataBase:
         :return: Словарь с отформатированными данными о регулярном занятии.
         """
         return {
-            'id' : lesson[0],
+            'idGroup' : lesson[0],
             'topic' : lesson[1],
             'idsStudents' : lesson[2],
             'location' : lesson[3],
@@ -431,7 +431,7 @@ class DataBase:
                 Дата: {i['date']}
                 Телефон: {i['phoneNumber']}
                 """
-                students.append({'text':string, 'idGroup': i['idGroup']})
+                students.append({'text':string, 'idGroup': int(i['idGroup'])})
         return students
     
     def deleteData(self, tableName:str, field:str, param) -> None:
@@ -501,7 +501,7 @@ class ContextDataBase:
                 cursor.execute("SELECT context FROM Context WHERE chat = ?", [chat])
                 context = cursor.fetchone()
                 if context:
-                    return context[0]
+                    return list(context[0])
                 else:
                     return None
         except sqlite3.Error as e:

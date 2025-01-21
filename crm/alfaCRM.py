@@ -52,7 +52,7 @@ class AlfaCRM:
                 return brunches[1]["id"]
 
         
-    def getData(self,model:str, data: dict) -> list:
+    def getData(self,model:str, data: dict[str:any]) -> list:
         path = f"https://{self._hostname}/v2api/{self._brunchId}/{self._models[model]}"
         r = requests.post(path,data=json.dumps(data),headers = self._header)
         dataDict = json.loads(r.text)
