@@ -2,7 +2,7 @@ import requests
 import json
 from dataBase.DataBase import DataBase, ContextDataBase
 from typing import TypedDict
-
+import asyncio
 
 
 
@@ -83,6 +83,7 @@ class YandexGPTChatBot:
         self._groups = []
         self.students = []
         self._currentMessages = {}
+        self._analizer = GPTTextAnalyzer(gpt)
 
     def _getContext(self, chatId:str) -> list[dict[str:str]]:
         if not chatId in self._currentContext: 
@@ -104,7 +105,7 @@ class YandexGPTChatBot:
         })
 
     def _getMessage(self, skriptKey:str, chat:str, message:dict = None) -> list[dict[str:str]]:
-        with open("prompts/prompst.json", encoding='utf-8') as f:
+        with open("prompts/chatBotPrompst.json", encoding='utf-8') as f:
             data = json.load(f)
         return [
             {
@@ -126,7 +127,15 @@ class YandexGPTChatBot:
             },
         ]
     
-    def sendRequest(self, skriptKey:str,chat:str, message:str = None ):
+    def _getScenaries(self,chat:str, message:str) -> str:
+            answer = self._analizer.analyze(message)
+            if answer != 'None':
+                return answer
+            else:
+                return None
+        
+        
+    def sendMessage(self, skriptKey:str,chat:str, message:str = None ): 
         gptMessage = self._gpt.request(self._getMessage(skriptKey,chat,message))
         self._addToContext(chat, "user", message['text'])
         self._addToContext(chat, "assistant", gptMessage)
@@ -136,42 +145,42 @@ class YandexGPTChatBot:
 
 
 
-    # def _getInformationAboutGroups(self):
-    #     """
-    #     Возвращает информацию о группах.
+class GPTTextAnalyzer:
 
-    #     :return: Список сообщений с информацией о группах.
-    #     """
-    #     self.groups = self.db.getAllGroupsOccupancy()
-    #     text = "Информация по группам: "
-    #     for i in self.groups:
-    #         text +=  f"\nЛокация: {i['location']} Тема: {i['topic']} Преподаватель: {i['teachers']} День: {i['day']} Время: {i['time']} Id группы: {i['idGroup']} Мест в группе: {i['maxStudents'] - i['countStudents']} Можно назначать отработку: {yesOrNo(1)} " # yesOrNo(i['assignWorkOffs'])
-            
-    #     messages = [ {
-    #         "role": "system",
-    #         "text": text,
-    #     }]
-    #     return messages
+    # class _Message(TypedDict):
+    #     role:str
+    #     text:str
 
-    # def _getInformationStudentAbsences(self):
-    #     """
-    #     Возвращает информацию об отсутствиях студентов.
+    def __init__(self,gpt:YandexGPTModel):
+        self._gpt = gpt
+        self.scenariesKeys = []
+        pass
 
-    #     :return: Список сообщений с информацией об отсутствиях студентов.
-    #     """
-    #     self.students = self.db.getStudentAbsencesData()
-    #     messages = [ {
-    #         "role": "system",
-    #         "text": "Информация по группам:"
-    #     }]
-    #     for i in self.students:
-    #         group = findInListById(self.groups, i['idGroups'])
-    #         message = {
-    #         "role": "system",
-    #         "text":  f"Напиши данному клиенту и назначь отработку: Имя : {i['name']} Телефон: {i['phoneNumber']} id Урока:{i['idLesson']} id группы:{i['idGroups']} Тема: {i['topic']} Локация:{group['location']} Преподаватель: {'teachers'} День основного урока:{group['day']} Время основного урока: {group['time']} Задача: Отработка "
-    #         }
-    #         messages.append(message)
-    #     return messages
-    
 
+    def _getScenaries(self):
+        with open("prompts/chatBotPrompst.json", encoding='utf-8') as f:
+            data = json.load(f)
+        self.scenariesKeys = data['scenaries'].keys()
+
+    async def _getMessage(self, message:list):
+        with open("prompts/chatBotPrompst.json", encoding='utf-8') as f:
+            data = json.load(f)
+        return [
+            {
+            "role": "system",
+            "text": data['introduce']
+            },
+            {
+            "role": "system",
+            "text": data['scenaries']['worksOff']
+            },
+            {
+            "role": message['role'],
+            "text": message['text']
+            }
+        ]
+        
+    async def analyze(self, message:str):
+        return self._gpt.request(await self._getMessage(message))
+        
 

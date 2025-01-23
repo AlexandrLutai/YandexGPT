@@ -394,13 +394,7 @@ class DataBase:
                     teacher =self._formatLocationOrTeacher(self._selectData('Teachers', 'id', regularLesson['teacher'])[0])
 
                     string += f"""
-                    Тема : {regularLesson['topic']}
-                    Локация : {location['name']}
-                    Преподаватель: {teacher['name']}
-                    День недели: {getNameDay(regularLesson['day'])}
-                    Время начала: {regularLesson['timeFrom']}
-                    Время окончания: {regularLesson['timeTo']}
-                    Назначать отработки: {assignWorkOffsToText(regularLesson['assignWorkOffs'])}
+                    Тема : {regularLesson['topic']}, Локация : {location['name']}, Преподаватель: {teacher['name']}, День недели: {getNameDay(regularLesson['day'])},Время начала: {regularLesson['timeFrom']},Время окончания: {regularLesson['timeTo']},Назначать отработки: {assignWorkOffsToText(regularLesson['assignWorkOffs'])}
                     """
         return string
    
@@ -424,7 +418,7 @@ class DataBase:
                 location =self._formatLocationOrTeacher(self._selectData('Locations', 'id', regularLesson['location'])[0])
                 teacher =self._formatLocationOrTeacher(self._selectData('Teachers', 'id', regularLesson['teacher'])[0])
                 string = f"""
-                Имя: {i['name']}
+                Имя ребёнка: {i['name']}
                 Тема: {i['topic']}
                 Локация: {location['name']}
                 Преподаватель: {teacher['name']}

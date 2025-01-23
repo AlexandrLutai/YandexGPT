@@ -11,18 +11,18 @@ contextDb = ContextDataBase("dataBase/dataBases/contextDataBase.db")
 crm = AlfaCRM(autorization.crmhostname, autorization.crmEmail, autorization.crmKey)
 crmManager = AlfaCRMDataManager(crm,7,14)
 
-model = YandexGPTModel(autorization.yandexGPTKey,autorization.yandexCloudIdentificator)
+model = YandexGPTModel(autorization.yandexGPTKey,autorization.yandexCloudIdentificator, 1)
 
 chatBot = YandexGPTChatBot(model, db,contextDb)
 student = db.getStudentAbsences()
 groups = db.getAllGroupsOccupancy(student[0]['idGroup'])
 string = groups + "\n"+student[0]['text']
-print(chatBot.sendRequest('worksOff', '8943543443',{'role':"system", "text":string}))
+print(chatBot.sendMessage('worksOff', '8943543443',{'role':"system", "text":string}))
 # Связь между lessons и regularLessons устанавливается полем regularId
  
 while(True):
     message = input()
-    print(chatBot.sendRequest('worksOff', '8943543443',{'role':"user", "text":message}))
+    print(chatBot.sendMessage('worksOff', '8943543443',{'role':"user", "text":message}))
 
 
 
