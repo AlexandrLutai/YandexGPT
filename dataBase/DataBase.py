@@ -284,10 +284,12 @@ class DataBase:
         """
         try:
             sql = f"SELECT * FROM {tableName}"
+            params = ()
             if param:
-                sql += f" WHERE({field} = {param})"
+                sql += f" WHERE {field} = ?"
+                params = (param,)
             with db_ops(self.path) as cursor:
-                cursor.execute(sql)
+                cursor.execute(sql, params)
                 groups = cursor.fetchall()
             return groups
         except sqlite3.Error as e:
@@ -376,7 +378,7 @@ class DataBase:
             'lastUpdate': group[5]
         }
     
-    def getAllGroupsOccupancy(self, idGroup: int = None) -> str:
+    def getAllGroupsOccupancy(self, idGroup: int = None, idLocation:str = None) -> str:
         """
         Возвращает строку с информацией о доступных группах.
         Параметры:
@@ -388,7 +390,7 @@ class DataBase:
         string = "Доступные группы:\n"
         for i in groupsOccupancy:
             regularLesson = self._formatRegularLesson(self._selectData('RegularLessons', 'idGroup', i['idGroup'])[0])
-            if idGroup != regularLesson['idGroup']:
+            if idGroup != regularLesson['idGroup'] and idLocation == regularLesson['location']:
                 if i['count'] < regularLesson['maxStudents']:
                     location =self._formatLocationOrTeacher(self._selectData('Locations', 'id', regularLesson['location'])[0])
                     teacher =self._formatLocationOrTeacher(self._selectData('Teachers', 'id', regularLesson['teacher'])[0])
@@ -423,9 +425,9 @@ class DataBase:
                 Локация: {location['name']}
                 Преподаватель: {teacher['name']}
                 Дата: {i['date']}
-                Телефон: {i['phoneNumber']}
+                
                 """
-                students.append({'text':string, 'idGroup': int(i['idGroup'])})
+                students.append({'text':string, 'idGroup': int(i['idGroup']), 'location':regularLesson['location'],  "phoneNumber":i['phoneNumber']})
         return students
     
     def deleteData(self, tableName:str, field:str, param) -> None:

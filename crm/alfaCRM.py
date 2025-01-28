@@ -2,13 +2,38 @@ import requests
 import json
 from datetime import date, timedelta,datetime
 from dataBase.DataBase import DataBase
-import re
+from abc import ABC, abstractmethod
+
+class CrmDataManagerInterface(ABC):
+
+    @abstractmethod
+    def getLocations(self):
+        pass
+
+    @abstractmethod
+    def getRegularLessonsByLocationId(self):
+        pass
+    
+    @abstractmethod
+    def getTeachers(self):
+        pass
+
+    
+    @abstractmethod
+    def getStudentsMissedLesson(self):
+        pass
+
+    @abstractmethod
+    def getLocations(self):
+        pass
+
+
 # Разобраться с хэшированием 
 #Дописать функции получения данных из разных таблиц.
 #Написать декорратор, проверяющий на валидность временный токен
 class AlfaCRM: 
     def __init__(self, hostname:str, email:str, key:str):
-        self._models = {
+        self._getModels = {
             "RegularLessons":"regular-lesson/index",
             "Students": "customer/index",
             "Locations": "location/index",
@@ -17,6 +42,9 @@ class AlfaCRM:
             "Teachers" : "teacher/index",
             "Locations" : "location/index",
             }
+        self._createModels = {
+            "Lessons" : "lesson/create",
+        }
         self._email = email
         self._key = key
         self._hostname = hostname
@@ -51,9 +79,13 @@ class AlfaCRM:
             case _:
                 return brunches[1]["id"]
 
+    def createModel(self, model:str, data:dict[str:any]):
+        path = f"https://{self._hostname}/v2api/{self._brunchId}/{self._createModels[model]}"
+        r = requests.post(path,data=json.dumps(data),headers = self._header)
+        return r.text
         
     def getData(self,model:str, data: dict[str:any]) -> list:
-        path = f"https://{self._hostname}/v2api/{self._brunchId}/{self._models[model]}"
+        path = f"https://{self._hostname}/v2api/{self._brunchId}/{self._getModels[model]}"
         r = requests.post(path,data=json.dumps(data),headers = self._header)
         dataDict = json.loads(r.text)
         if "items" in dataDict:
@@ -67,7 +99,7 @@ class AlfaCRM:
 
 #Пересмотреть функции доступа к CRM, из за частых обращений работает крайне долго,
 #Подумать над тем, что бы вытягивать все нужные данные одним запросом.
-class AlfaCRMDataManager:
+class AlfaCRMDataManager(CrmDataManagerInterface):
     def __init__(self, crm:AlfaCRM, updatePeriotByNexLesson:int = 7, updatePeriodByPrevLesson:int = 7):
         self._crm = crm
         
@@ -80,7 +112,7 @@ class AlfaCRMDataManager:
             if i['regular_id'] != None:
                 regularLessons.append(i)
         return regularLessons
-        
+    
     def _getNextLessonsByLocation(self, locationId:int) ->list:
         page = 0 
         dateNextLesson = date.today() + timedelta(self._updatePeriodToNextLesson)
@@ -200,44 +232,7 @@ class AlfaCRMDataManager:
                 if record[key] == value:
                     return record
         return []
-    
-    # def _fillTableGroupOccupancy(self):
-    #     groupList =[]
-    #     for page in self._nextLessonsData:
-    #         for lesson in page:
-    #             group = self._findRecord(self._groupData,'id',lesson['group_ids'][0])
-    #             prevLesson = self._findRecord(self._previusLessonData,'group_ids',lesson['group_ids'])
-    #             groupList.append({
-    #                 'idsStudents': ','.join(map(str,lesson['customer_ids'])),
-    #                 'topic': prevLesson['topic'],
-    #                 'location':self._getLocationName(group),
-    #                 'teachers': ', '.join(group['teacher_ids']),
-    #                 'day': datetime.strptime(lesson['date'],'%Y-%m-%d').weekday(),
-    #                 'time': datetime.strptime(lesson['time_from'],'%Y-%m-%d %H:%M:%S').time().strftime('%H:%M'),
-    #                 'assignWorkOffs': 1,
-    #                 'idGroup': lesson["group_ids"][0],
-    #                 'countStudents':len(lesson['customer_ids']),
-    #                 'limit': group['limit']
-    #             })
-    #     self._DB.fillTableGroupOccupancy(groupList)
-    
-    # def _getLocations(self):
-    #     locations = self._crm.getData('Locations', {'is_active':1}) 
-    #     return locations
-
-
-
-
-
-    
    
-   
-  
-    
-    
-    
-    
-    
     def _fillTempLists(self):
         
         self._groupData = self._getGroups()

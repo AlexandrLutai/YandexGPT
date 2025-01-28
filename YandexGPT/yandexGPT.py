@@ -53,6 +53,8 @@ class YandexGPTModel:
         prompt = self._fillGPTPrompt(messages)
 
         r = requests.post(url=self._url, json=prompt, headers=self._headers)
+        print(r.text)
+       
         if 'result' in r.text:
             return json.loads(r.text)['result']["alternatives"][0]["message"]['text']
         return r.text
@@ -95,7 +97,6 @@ class YandexGPTChatBot:
         return self._currentContext[chatId]
 
     def _delFromCurrentContext(self, chatId:str):
-       
         del self._currentContext[chatId]
 
     def _addToContext(self, chat:str, role:str, message:str):

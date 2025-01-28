@@ -4,25 +4,36 @@ from crm.alfaCRM import AlfaCRM, AlfaCRMDataManager, AlfaCRMDBManager
 from dataBase.DataBase import DataBase, ContextDataBase
 from YandexGPT.yandexGPT import YandexGPTChatBot, YandexGPTModel
 
-import json
+import datetime
 
-db = DataBase('dataBase/dataBases/dataBase.db')
-contextDb = ContextDataBase("dataBase/dataBases/contextDataBase.db")
-crm = AlfaCRM(autorization.crmhostname, autorization.crmEmail, autorization.crmKey)
-crmManager = AlfaCRMDataManager(crm,7,14)
+#Добавление урока
+# date = datetime.date(2025,2,15)
+# crm = AlfaCRM(autorization.crmhostname, autorization.crmEmail, autorization.crmKey)
 
-model = YandexGPTModel(autorization.yandexGPTKey,autorization.yandexCloudIdentificator, 1)
+# print(crm.createModel("Lessons", {"lesson_type_id":4,"lesson_date":"15-02-2025", "time_from":"13:30","duration":120, "subject_id":1}))
 
-chatBot = YandexGPTChatBot(model, db,contextDb)
-student = db.getStudentAbsences()
-groups = db.getAllGroupsOccupancy(student[0]['idGroup'])
-string = groups + "\n"+student[0]['text']
-print(chatBot.sendMessage('worksOff', '8943543443',{'role':"system", "text":string}))
-# Связь между lessons и regularLessons устанавливается полем regularId
- 
-while(True):
-    message = input()
-    print(chatBot.sendMessage('worksOff', '8943543443',{'role':"user", "text":message}))
+
+
+
+
+
+
+# db = DataBase('dataBase/dataBases/dataBase.db')
+# contextDb = ContextDataBase("dataBase/dataBases/contextDataBase.db")
+
+
+
+# model = YandexGPTModel(autorization.yandexGPTKey,autorization.yandexCloudIdentificator, 1)
+
+# chatBot = YandexGPTChatBot(model, db,contextDb)
+# student = db.getStudentAbsences()
+# groups = db.getAllGroupsOccupancy(student[8]['idGroup'],student[8]["location"])
+# string = groups + "\n"+student[8]['text']
+# print(chatBot.sendMessage('worksOff', '8943543443',{'role':"system", "text":string}))
+# # Связь между lessons и regularLessons устанавливается полем regularId
+# while(True):
+#     message = input()
+#     print(chatBot.sendMessage('worksOff', '8943543443',{'role':"user", "text":message}))
 
 
 
