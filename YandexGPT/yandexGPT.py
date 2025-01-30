@@ -119,7 +119,7 @@ class YandexGPTChatBot:
             },
             {
             "role": "system",
-            "text": data['scenaries']['worksOff']
+            "text": data['scenaries']['Отработки']
             },
             *self._getContext(chat),  # Распаковываем словари из списка
             {
@@ -142,6 +142,13 @@ class YandexGPTChatBot:
         self._addToContext(chat, "assistant", gptMessage)
         return gptMessage
         
+    def _checkGPTAnswer(self, answer:str):
+        if "|" in answer:
+            pass
+        if "HELP" in answer:
+            pass
+        if "Пользователь" in answer:
+            pass
 
 
 

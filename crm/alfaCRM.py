@@ -27,6 +27,10 @@ class CrmDataManagerInterface(ABC):
     def getLocations(self):
         pass
 
+    @abstractmethod
+    def addWorkOff(self):
+        pass
+
 
 # Разобраться с хэшированием 
 #Дописать функции получения данных из разных таблиц.
@@ -81,7 +85,7 @@ class AlfaCRM:
 
     def createModel(self, model:str, data:dict[str:any]):
         path = f"https://{self._hostname}/v2api/{self._brunchId}/{self._createModels[model]}"
-        r = requests.post(path,data=json.dumps(data),headers = self._header)
+        r = requests.post(path,data,headers = self._header)
         return r.text
         
     def getData(self,model:str, data: dict[str:any]) -> list:
@@ -234,7 +238,6 @@ class AlfaCRMDataManager(CrmDataManagerInterface):
         return []
    
     def _fillTempLists(self):
-        
         self._groupData = self._getGroups()
         self._nextLessonsData = self._getNextLessons()
         self._previusLessonData = self._getPreviusLessons()
@@ -269,6 +272,8 @@ class AlfaCRMDataManager(CrmDataManagerInterface):
                             record.append(student)
         self._DB.fillTableStudentAbsences(record)
 
+    def addWorkOff(self):
+        self._crm.createModel()
     
            
             

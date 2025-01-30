@@ -3,9 +3,6 @@ from contextlib import contextmanager
 import datetime
 
 
-from contextlib import contextmanager
-import datetime
-
 
 class DataBase:
     """Создаёт необходимые таблицы и предоставляет интерфейс ля работы с ними"""
@@ -43,10 +40,12 @@ class DataBase:
                     CREATE TABLE IF NOT EXISTS GroupOccupancy(
                     idGroup INTEGER,
                     newStudents TEXT,
+                    
                     idsStudents TEXT,
                     dateOfEvent TEXT,
                     count INTEGER DEFAULT 0,
-                    lastUpdate TEXT 
+                    lastUpdate TEXT,
+                    worksOffsTopics TEXT
                     );
                     CREATE TABLE IF NOT EXISTS RegularLessons(
                     idGroup INTEGER NOT NULL,
@@ -108,7 +107,7 @@ class DataBase:
                     cursor.execute('INSERT INTO RegularLessons (idGroup,topic,idsStudents,location,teacher,day,timeFrom,timeTo,maxStudents,lastUpdate) VALUES(?,?,?,?,?,?,?,?,?,?)', 
                                 (i['idGroup'], i['topic'],i['idsStudents'], i['location'],i['teacher'],i['day'],i['timeFrom'],i['timeTo'],i['maxStudents'],i['lastUpdate']))
         except sqlite3.Error as e:
-            print(f"Ошибка при синхронизации таблицы Teachers: {e}")      
+            print(f"Ошибка при синхронизации таблицы RegularLessons: {e}")      
    
    
     def insertNewLocation(self, data:dict) -> None:
@@ -375,7 +374,8 @@ class DataBase:
             'idsStudents' : group[2],
             'dateOfEvent' : group[3],
             'count' : group[4],
-            'lastUpdate': group[5]
+            'lastUpdate': group[5],
+            'worksOffsTopics': group[6]
         }
     
     def getAllGroupsOccupancy(self, idGroup: int = None, idLocation:str = None) -> str:
@@ -396,7 +396,7 @@ class DataBase:
                     teacher =self._formatLocationOrTeacher(self._selectData('Teachers', 'id', regularLesson['teacher'])[0])
 
                     string += f"""
-                    Тема : {regularLesson['topic']}, Локация : {location['name']}, Преподаватель: {teacher['name']}, День недели: {getNameDay(regularLesson['day'])},Время начала: {regularLesson['timeFrom']},Время окончания: {regularLesson['timeTo']},Назначать отработки: {assignWorkOffsToText(regularLesson['assignWorkOffs'])}
+                    id Группы:{regularLesson['idGroup']}, Основная тема : {regularLesson['topic']}, Темы отработок: {i['worksOffsTopics']}, Локация : {location['name']}, Преподаватель: {teacher['name']}, День недели: {getNameDay(regularLesson['day'])},Время начала: {regularLesson['timeFrom']},Время окончания: {regularLesson['timeTo']},Назначать отработки: {assignWorkOffsToText(regularLesson['assignWorkOffs'])}
                     """
         return string
    
@@ -444,6 +444,17 @@ class DataBase:
         except sqlite3.Error as e:
             print(f"Ошибка при удалении данных из таблицы {tableName}: {e}")
     
+    def getAllLocations(self):
+        """
+        Возвращает список локаций.
+
+        :return: Список словарей с данными о локациях.
+        """
+        try:
+            locations = self._selectData('Locations')
+            return self._formatLocationsOrTeachers(locations)
+        except sqlite3.Error as e:
+            print(f"Ошибка при получении данных о локациях: {e}")
 class ContextDataBase:
     def __init__(self, path:str):
         """
