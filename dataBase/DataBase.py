@@ -58,7 +58,8 @@ class DataBase:
                     timeTo TEXT NOT NULL,
                     assignWorkOffs INTEGER DEFAULT 1,
                     maxStudents INTEGER NOT NULL,
-                    lastUpdate TEXT NOT NULL
+                    lastUpdate TEXT NOT NULL,
+                    subjectId INTEGER 
                     );
                     CREATE TABLE IF NOT EXISTS Locations(
                     id INTEGER NOT NULL,
@@ -104,8 +105,8 @@ class DataBase:
                 cursor.execute("DELETE FROM RegularLessons")
             for i in groups:
                 with db_ops(self.path) as cursor:
-                    cursor.execute('INSERT INTO RegularLessons (idGroup,topic,idsStudents,location,teacher,day,timeFrom,timeTo,maxStudents,lastUpdate) VALUES(?,?,?,?,?,?,?,?,?,?)', 
-                                (i['idGroup'], i['topic'],i['idsStudents'], i['location'],i['teacher'],i['day'],i['timeFrom'],i['timeTo'],i['maxStudents'],i['lastUpdate']))
+                    cursor.execute('INSERT INTO RegularLessons (idGroup,topic,idsStudents,location,teacher,day,timeFrom,timeTo,maxStudents,lastUpdate,subjectId) VALUES(?,?,?,?,?,?,?,?,?,?,?)', 
+                                (i['idGroup'], i['topic'],i['idsStudents'], i['location'],i['teacher'],i['day'],i['timeFrom'],i['timeTo'],i['maxStudents'],i['lastUpdate'], i['subjectId']))
         except sqlite3.Error as e:
             print(f"Ошибка при синхронизации таблицы RegularLessons: {e}")      
    
@@ -208,7 +209,6 @@ class DataBase:
             allGroups.append(self._formatGroupOccupancyData(i))
         return allGroups
     
-    
     def _selectData(self, tableName:str, field:str = None, param = None) -> list[tuple]:
         """
         Выполняет SELECT запрос к базе данных.
@@ -223,13 +223,15 @@ class DataBase:
             params = ()
             if param:
                 sql += f" WHERE {field} = ?"
-                params = (param,) 
+                params = (param,)
             with db_ops(self.path) as cursor:
                 cursor.execute(sql, params)
                 groups = cursor.fetchall()
             return groups
         except sqlite3.Error as e:
-            print(f"Ошибка при выполнении SELECT запроса: {e}")       
+            print(f"Ошибка при выполнении SELECT запроса: {e}")
+
+         
     
     def updateData(self, data:dict[str:any],  tableName:str, selectPams:dict[str:any] = None) -> None:
         """
@@ -422,9 +424,9 @@ class DataBase:
                 string = f"""
                 Имя ребёнка: {i['name']}
                 Тема: {i['topic']}
-                Локация: {location['name']}
                 Преподаватель: {teacher['name']}
-                Дата: {i['date']}
+                День основного занятия: {getNameDay(regularLesson['day'])}
+                Время начала основного занятия: {regularLesson['timeFrom']}
                 
                 """
                 students.append({'text':string, 'idGroup': int(i['idGroup']), 'location':regularLesson['location'],  "phoneNumber":i['phoneNumber']})
@@ -444,6 +446,60 @@ class DataBase:
         except sqlite3.Error as e:
             print(f"Ошибка при удалении данных из таблицы {tableName}: {e}")
     
+    def _selectOneData(self, tableName:str, field:str, param) -> tuple:
+        """
+        Выполняет SELECT запрос к базе данных и возвращает одну запись.
+
+        :param tableName: Название таблицы.
+        :param field: Поле для условия WHERE.
+        :param param: Значение для условия WHERE.
+        :return: Кортеж с результатом запроса.
+        """
+        try:
+            with db_ops(self.path) as cursor:
+                cursor.execute(f"SELECT * FROM {tableName} WHERE {field} = ?", [param])
+                return cursor.fetchone()
+        except sqlite3.Error as e:
+            print(f"Ошибка при выполнении SELECT запроса: {e}")
+
+    def getGroup(self, idGroup:int) -> dict:
+        """
+        Возвращает данные о группе по идентификатору.
+
+        :param idGroup: Идентификатор группы.
+        :return: Словарь с данными о группе.
+        """
+        try:
+            group = self._selectOneData('RegularLessons', 'idGroup', idGroup)
+            return self._formatRegularLesson(group)
+        except sqlite3.Error as e:
+            print(f"Ошибка при получении данных о группе: {e}")
+    
+    def getStudent(self, phoneNumber:str) -> dict:
+        """
+        Возвращает данные о студенте по идентификатору.
+
+        :param idStudent: Идентификатор студента.
+        :return: Словарь с данными о студенте.
+        """
+        try:
+            student = self._selectOneData('StudentAbsences', 'phoneNumber', phoneNumber)
+            return self._formatStudentAbsence(student)
+        except sqlite3.Error as e:
+            print(f"Ошибка при получении данных о студенте: {e}")
+
+    def getGroup(self, idGroup:int)->dict:
+        """
+        Возвращает данные о группе по идентификатору.
+
+        :param idGroup: Идентификатор группы.
+        :return: Словарь с данными о группе.
+        """
+        try:
+            group = self._selectOneData('RegularLessons', 'idGroup', idGroup)
+            return self._formatRegularLesson(group)
+        except sqlite3.Error as e:
+            print(f"Ошибка при получении данных о группе: {e}")
     def getAllLocations(self):
         """
         Возвращает список локаций.

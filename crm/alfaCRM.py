@@ -3,6 +3,11 @@ import json
 from datetime import date, timedelta,datetime
 from dataBase.DataBase import DataBase
 from abc import ABC, abstractmethod
+import enum
+
+from typing import TypedDict
+
+
 
 class CrmDataManagerInterface(ABC):
 
@@ -58,15 +63,30 @@ class AlfaCRM:
         
 
     def _getTempToken(self) -> str:
+        """
+        Получает временный токен для авторизации.
+        
+        Returns:
+            str: Временный токен.
+        """
         path = f"https://{self._hostname}/v2api/auth/login"
         r = requests.post(path,json.dumps({'email':self._email, 'api_key':self._key}))
         return json.loads(r.text)["token"]
 
     
     def _fillHeader(self) -> None:
+        """
+        Заполняет заголовок запроса временным токеном.
+        """
         self._header = {'X-ALFACRM-TOKEN': self._getTempToken()}
     
     def _getBrunches(self) -> int:    
+        """
+        Получает идентификатор филиала.
+
+        Returns:
+            int: Идентификатор филиала.
+        """
         path = f"https://{self._hostname}/v2api/branch/index"
         r = requests.post(path,data=json.dumps({"is_active" : 1}), headers = self._header)
         brunchDict = json.loads(r.text)
@@ -77,6 +97,15 @@ class AlfaCRM:
             return self._getBrunches()
     
     def _getIdBrunches(self, brunches:list) ->int:       
+        """
+        Получает идентификатор филиала из списка филиалов.
+
+        Args:
+            brunches (list): Список филиалов.
+
+        Returns:
+            int: Идентификатор филиала.
+        """
         match(len(brunches)):
             case 1:
                 return brunches[0]["id"]
@@ -84,11 +113,31 @@ class AlfaCRM:
                 return brunches[1]["id"]
 
     def createModel(self, model:str, data:dict[str:any]):
+        """
+        Создает модель в CRM.
+
+        Args:
+            model (str): Название модели.
+            data (dict[str:any]): Данные для создания модели.
+
+        Returns:
+            str: Ответ от сервера.
+        """
         path = f"https://{self._hostname}/v2api/{self._brunchId}/{self._createModels[model]}"
         r = requests.post(path,data,headers = self._header)
         return r.text
         
     def getData(self,model:str, data: dict[str:any]) -> list:
+        """
+        Получает данные из CRM.
+
+        Args:
+            model (str): Название модели.
+            data (dict[str:any]): Данные для запроса.
+
+        Returns:
+            list: Список данных.
+        """
         path = f"https://{self._hostname}/v2api/{self._brunchId}/{self._getModels[model]}"
         r = requests.post(path,data=json.dumps(data),headers = self._header)
         dataDict = json.loads(r.text)
@@ -104,13 +153,61 @@ class AlfaCRM:
 #Пересмотреть функции доступа к CRM, из за частых обращений работает крайне долго,
 #Подумать над тем, что бы вытягивать все нужные данные одним запросом.
 class AlfaCRMDataManager(CrmDataManagerInterface):
-    def __init__(self, crm:AlfaCRM, updatePeriotByNexLesson:int = 7, updatePeriodByPrevLesson:int = 7):
+    class LessonData(TypedDict):
+        """
+        Класс для представления данных урока.
+
+        Атрибуты:
+        topic (str): Тема урока.
+        lesson_date (str): Дата урока.Формат DD.MM.YYYY.
+        customer_ids (list): Список c студентов.
+        time_from (str): Время начала урока. Формат HH:MM.
+        duration (int): Продолжительность урока в минутах.
+        lesson_type_id (int): Идентификатор типа урока.
+        subject_id (int): Идентификатор предмета.
+        teacher_ids (list): Список идентификаторов учителей.
+        """
+        topic:str
+        lesson_date:str
+        customer_ids:list
+        time_from:str
+        duration:int
+        lesson_type_id:int
+        subject_id:int
+        teacher_ids:list
+
+    class WorkOffType(enum.Enum):
+        ADD_TO_CURRENT_GROUP = 0
+        ADD_TO_NEW_LESSON = 1
+    
+    def __init__(self, crm:AlfaCRM,workOffType: 'AlfaCRMDataManager.WorkOffType' = 1, updatePeriotByNexLesson:int = 7, updatePeriodByPrevLesson:int = 7):
+        """
+        Инициализирует менеджер данных CRM.
+
+        Args:
+            crm (AlfaCRM): Экземпляр класса AlfaCRM.
+            workOffType (AlfaCRMDataManager.WorkOffType): Тип отработки.
+            updatePeriotByNexLesson (int): Период обновления до следующего урока.
+            updatePeriodByPrevLesson (int): Период обновления до предыдущего урока.
+        """
         self._crm = crm
-        
+        self._workOffType = workOffType
         self._updatePeriodToNextLesson = 7
         self._updatePeriodToPreviousLesson = updatePeriodByPrevLesson
     
+
+    
+
     def _getRegularLessons(self, allLessons:list) -> list:
+        """
+        Получает регулярные уроки из списка всех уроков.
+
+        Args:
+            allLessons (list): Список всех уроков.
+
+        Returns:
+            list: Список регулярных уроков.
+        """
         regularLessons = []
         for i in allLessons:
             if i['regular_id'] != None:
@@ -118,6 +215,15 @@ class AlfaCRMDataManager(CrmDataManagerInterface):
         return regularLessons
     
     def _getNextLessonsByLocation(self, locationId:int) ->list:
+        """
+        Получает следующие уроки по идентификатору локации.
+
+        Args:
+            locationId (int): Идентификатор локации.
+
+        Returns:
+            list: Список следующих уроков.
+        """
         page = 0 
         dateNextLesson = date.today() + timedelta(self._updatePeriodToNextLesson)
         data = {'status': 1,'date_from':date.today().strftime('%y-%m-%d'), 'date_to': dateNextLesson.strftime('%y-%m-%d'),'page':page,'location_ids': [locationId]}
@@ -132,24 +238,56 @@ class AlfaCRMDataManager(CrmDataManagerInterface):
         return lessons
     
     def _getPreviusLessonByGroupId(self, groupId:int) -> list:
+        """
+        Получает предыдущие уроки по идентификатору группы.
+
+        Args:
+            groupId (int): Идентификатор группы.
+
+        Returns:
+            list: Список предыдущих уроков.
+        """
         datePreviousLesson= date.today() - timedelta(self._updatePeriodToPreviousLesson)
         data = {'status': 3,'group_id':groupId, 'date_from':datePreviousLesson.strftime('%y-%m-%d'), 'date_to':date.today().strftime('%y-%m-%d')}
         temp = self._crm.getData("Lessons", data)
         return temp
     
     def getLocations(self) -> list:
+        """
+        Получает список локаций.
+
+        Returns:
+            list: Список локаций.
+        """
         locations = self._crm.getData('Locations', {'is_active':1}) 
         return self._formatLocationsData(locations)
    
     
     def _formatLocationsData(self, locations:list) ->list:
+        """
+        Форматирует данные локаций.
+
+        Args:
+            locations (list): Список локаций.
+
+        Returns:
+            list: Отформатированный список локаций.
+        """
         locationsList = []
         for i in locations:
             locationsList.append({'id':i['id'], 'name':i['name']})
         return locationsList
     
     def getRegularLessonsByLocationId(self, locationId:int) -> list:
+        """
+        Получает регулярные уроки по идентификатору локации.
 
+        Args:
+            locationId (int): Идентификатор локации.
+
+        Returns:
+            list: Список регулярных уроков.
+        """
         nextLesson = self._getNextLessonsByLocation(locationId)
         regularLesson = []
         for page in nextLesson:
@@ -168,15 +306,31 @@ class AlfaCRMDataManager(CrmDataManagerInterface):
                         'timeFrom' : datetime.strptime(item['time_from'],'%Y-%m-%d %H:%M:%S').time().strftime('%H:%M'),
                         'timeTo' : datetime.strptime(item['time_to'],'%Y-%m-%d %H:%M:%S').time().strftime('%H:%M'),
                         'maxStudents' : self._getGroupById(groupId)[0]['limit'],
-                        'lastUpdate' : date.today().strftime('Y-%m-%d')
+                        'lastUpdate' : date.today().strftime('Y-%m-%d'),
+                        'subjectId': item['subject_id'],
                     }
                 )
         return regularLesson
 
     def _getGroupById(self, groupId:int)->list:
+        """
+        Получает данные группы по идентификатору группы.
+
+        Args:
+            groupId (int): Идентификатор группы.
+
+        Returns:
+            list: Данные группы.
+        """
         return self._crm.getData("Groups", {"id":groupId})
     
     def getTeachers(self) -> list:
+        """
+        Получает список учителей.
+
+        Returns:
+            list: Список учителей.
+        """
         page = 0
         teachers = []
         while True:
@@ -188,6 +342,15 @@ class AlfaCRMDataManager(CrmDataManagerInterface):
         return self._formatTeachersData(teachers)
 
     def _formatTeachersData(sef, data:list):
+        """
+        Форматирует данные учителей.
+
+        Args:
+            data (list): Список данных учителей.
+
+        Returns:
+            list: Отформатированный список учителей.
+        """
         teachers = []
         for page in data:
             for item in page:
@@ -197,6 +360,15 @@ class AlfaCRMDataManager(CrmDataManagerInterface):
    
         
     def getStudentsMissedLesson(self, groupId:int) -> list:
+        """
+        Получает список студентов, пропустивших урок.
+
+        Args:
+            groupId (int): Идентификатор группы.
+
+        Returns:
+            list: Список студентов, пропустивших урок.
+        """
         group = self._getPreviusLessonByGroupId(groupId)[0]
         skipping = []
         allStudents = self._getStudents()
@@ -220,6 +392,12 @@ class AlfaCRMDataManager(CrmDataManagerInterface):
 
 
     def _getStudents(self) ->list:
+        """
+        Получает список студентов.
+
+        Returns:
+            list: Список студентов.
+        """
         page =0
         students = []
         while True:
@@ -231,64 +409,129 @@ class AlfaCRMDataManager(CrmDataManagerInterface):
         return students
     
     def _findStudent(self,table:list,key:str,value):
+        """
+        Находит студента в таблице по ключу и значению.
+
+        Args:
+            table (list): Таблица студентов.
+            key (str): Ключ для поиска.
+            value: Значение для поиска.
+
+        Returns:
+            dict: Данные студента.
+        """
         for page in table:
             for record in page:
                 if record[key] == value:
                     return record
         return []
    
-    def _fillTempLists(self):
-        self._groupData = self._getGroups()
-        self._nextLessonsData = self._getNextLessons()
-        self._previusLessonData = self._getPreviusLessons()
+    # def _fillTempLists(self):
+    #     self._groupData = self._getGroups()
+    #     self._nextLessonsData = self._getNextLessons()
+    #     self._previusLessonData = self._getPreviusLessons()
 
-    def _clearTempLists(self):
-        self._studentsData.clear() 
-        self._groupData.clear()
-        self._nextLessonsData.clear()
-        self._previusLessonData.clear()
+    # def _clearTempLists(self):
+    #     self._studentsData.clear() 
+    #     self._groupData.clear()
+    #     self._nextLessonsData.clear()
+    #     self._previusLessonData.clear()
 
     #Подумать над периодом синхронизации, раз в какой то промежуток времени
-    def synchronizeGroupOccupancyTable(self,synchronizeAnyware:bool = False):
-        self._fillTempLists()      
-        self._fillTableGroupOccupancy()
-        self._clearTempLists()
+    # def synchronizeGroupOccupancyTable(self,synchronizeAnyware:bool = False):
+    #     self._fillTempLists()      
+    #     self._fillTableGroupOccupancy()
+    #     self._clearTempLists()
 
-    def addStudentInTableStudentAsences(self):
-        self._fillTempLists()      
-        self._fillTableStudentAsences()
-        self._clearTempLists()
+    # def addStudentInTableStudentAsences(self):
+    #     self._fillTempLists()      
+    #     self._fillTableStudentAsences()
+    #     self._clearTempLists()
     
    
 
-    def _fillTableStudentAsences(self):
+    # def _fillTableStudentAsences(self):
         
-        for page in self._previusLessonData:
-            record = []
-            for lesson in page:
-                for students in lesson['details']:
-                    if not students['is_attend']:
-                        if student := self._getAsence(lesson,students['customer_id']):
-                            record.append(student)
-        self._DB.fillTableStudentAbsences(record)
+    #     for page in self._previusLessonData:
+    #         record = []
+    #         for lesson in page:
+    #             for students in lesson['details']:
+    #                 if not students['is_attend']:
+    #                     if student := self._getAsence(lesson,students['customer_id']):
+    #                         record.append(student)
+    #     self._DB.fillTableStudentAbsences(record)
 
-    def addWorkOff(self):
-        self._crm.createModel()
+  
+    
+    def addWorkOff(self, data:LessonData):
+        """
+        Добавляет отработку урока.
+
+        Args:
+            data (LessonData): Данные урока.
+        """
+        if self._workOffType == self.WorkOffType.ADD_TO_CURRENT_GROUP:
+            pass
+        elif self._workOffType == self.WorkOffType.ADD_TO_NEW_LESSON:
+            data.update({'lesson_type_id':4})
+            self._createNewLesson(data)
+            pass
+    
+    def _createNewLesson(self, data:LessonData) -> str:
+        """
+        Создает новый урок.
+
+        Args:
+            data (LessonData): Данные урока.
+
+        Returns:
+            str: Ответ от сервера.
+        """
+        return self._crm.createModel("Lessons", data)
+    
+
+    # def _getAsence(self, lesson:dict, studentId:int) -> dict:
+    #     student = self._findStudent(self._studentsData, 'id', studentId)
+    #     if student:
+    #         return {
+    #             'idStudent': studentId,
+    #             'date': lesson['date'],
+    #             'topic': lesson['topic'],
+    #             'idGroup' : lesson['group_ids'][0],
+    #             'idLesson' : lesson['id'],
+    #             'teacher' : lesson['teacher_ids'][0],
+    #             'phoneNumber': student['phone'][0] ,
+    #             'name': student['name']          
+    #         }
+    #     return {}
     
            
             
 class AlfaCRMDBManager():
 
     def __init__(self,dataBase:DataBase, alfaCRMDataManager:AlfaCRMDataManager):
+        """
+        Инициализирует менеджер базы данных CRM.
+
+        Args:
+            dataBase (DataBase): Экземпляр класса DataBase.
+            alfaCRMDataManager (AlfaCRMDataManager): Экземпляр класса AlfaCRMDataManager.
+        """
         self.db = dataBase
         self.dataManager = alfaCRMDataManager
         pass
     
     def synchroniseTeachers(self):
+        """
+        Синхронизирует данные учителей с базой данных.
+        """
         self.db.synchroniseTeachers(self.dataManager.getTeachers())
         print('synchroniseTeachers Ok')
 
     def synchroniseRegularLessons(self):
+        """
+        Синхронизирует регулярные уроки с базой данных.
+        """
         locations = self.db.getAllLocations()
         allLessons = []
         for location in locations:
@@ -299,6 +542,9 @@ class AlfaCRMDBManager():
         print(f'synchroniseRegularLessons done')
 
     def insertInStudentAbsences(self):
+        """
+        Вставляет данные о пропусках студентов в базу данных.
+        """
         idsGroups = self.db.getRegularLessonsIds()
         for i in idsGroups:
             print(" insertInStudentAbsences group id ", i )
@@ -309,12 +555,11 @@ class AlfaCRMDBManager():
 
 
 
-    
-
-        
-
-        
 
 
 
-        
+
+
+
+
+

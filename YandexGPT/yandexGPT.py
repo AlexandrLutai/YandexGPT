@@ -1,10 +1,14 @@
 import requests
 import json
-from dataBase.DataBase import DataBase, ContextDataBase
+from dataBase.DataBase import DataBase, ContextDataBase,getDateNextWeekday
 from typing import TypedDict
-import asyncio
-
-
+from crm.alfaCRM import CrmDataManagerInterface 
+import datetime
+class messageData(TypedDict):
+        chat:str
+        text:str
+        idClient:int
+        topic:str
 
 class YandexGPTModel:
 
@@ -76,7 +80,9 @@ class YandexGPTChatBot:
     "9756786556":[]
     }
     """
-    def __init__(self, gpt:YandexGPTModel, db:DataBase, contextDB:ContextDataBase):
+    
+    
+    def __init__(self, gpt:YandexGPTModel, db:DataBase, crm:CrmDataManagerInterface, contextDB:ContextDataBase):
         
         self._gpt = gpt
         self._db = db
@@ -85,7 +91,7 @@ class YandexGPTChatBot:
         self._groups = []
         self.students = []
         self._currentMessages = {}
-        self._analizer = GPTTextAnalyzer(gpt)
+        self._analizer = GPTTextAnalyzer(gpt,crm,db)
 
     def _getContext(self, chatId:str) -> list[dict[str:str]]:
         if not chatId in self._currentContext: 
@@ -136,20 +142,15 @@ class YandexGPTChatBot:
                 return None
         
         
-    def sendMessage(self, skriptKey:str,chat:str, message:str = None ): 
+    def sendMessage(self, skriptKey:str, chat:str, message:str ): 
         gptMessage = self._gpt.request(self._getMessage(skriptKey,chat,message))
-        self._addToContext(chat, "user", message['text'])
+        self._addToContext(chat, message['role'], message['text'])
         self._addToContext(chat, "assistant", gptMessage)
+        
+        
         return gptMessage
         
-    def _checkGPTAnswer(self, answer:str):
-        if "|" in answer:
-            pass
-        if "HELP" in answer:
-            pass
-        if "Пользователь" in answer:
-            pass
-
+    
 
 
 
@@ -159,11 +160,12 @@ class GPTTextAnalyzer:
     #     role:str
     #     text:str
 
-    def __init__(self,gpt:YandexGPTModel):
+    def __init__(self,gpt:YandexGPTModel, crm:CrmDataManagerInterface, db:DataBase):
         self._gpt = gpt
+        self.db = db
+        self._crm = crm
         self.scenariesKeys = []
         pass
-
 
     def _getScenaries(self):
         with open("prompts/chatBotPrompst.json", encoding='utf-8') as f:
@@ -187,8 +189,49 @@ class GPTTextAnalyzer:
             "text": message['text']
             }
         ]
-        
-    async def analyze(self, message:str):
+    
+    def analyzeGPTAnswer(self, answer:messageData):
+        message = answer["text"]
+        if "|" in answer["text"]:
+            message = self._analyzeSystemMessage(answer)
+            pass
+        if "help" in answer["text"].lower():
+            pass
+        if "пользователь" in answer["text"].lower():
+            pass
+        return message
+   
+   
+    def _analyzeSystemMessage(self, answer:messageData):
+        message = answer['text'].split('|')
+        if "отработк" in message[0].lower():
+            self._processWorkOffMessage(message, answer['chat'])
+            pass
+        return message[-1]
+   
+   
+    def _processWorkOffMessage(self, message:list, chat:str):
+        if message[1].lower() == 'success':
+            self._addWorkOffToCRM(chat, message)
+            pass
+        elif message[1].lower() == 'fail':
+            pass
+    
+    def _addWorkOffToCRM(self, chat:str, message:list):
+        student = self.db.getStudent(chat)
+        group = self.db.getGroup(int(message[2]))
+        data = {
+            "topic": student['topic'],
+            "lesson_date": getDateNextWeekday(group['weekday']).strftime('%d-%m-%Y'),
+            "costumer_ids": list(student['id']),
+            "time_from": group['timeFrom'],
+            "duration": (datetime.datetime.strptime(group['timeTo'],"%H:%M") - datetime.datetime.strptime(group['timeFrom'],"%H:%M")).total_seconds()//60,
+            "subject_id": group['subjectId'],
+            "teacher_id": list(group['teacherId']),
+        }
+        self._crm.addWorkOff(data)
+        pass
+    
+   
+    async def analyzeMessage(self, message:str):
         return self._gpt.request(await self._getMessage(message))
-        
-
