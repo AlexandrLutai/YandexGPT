@@ -16,9 +16,10 @@ class YandexGPTModel:
         """
         Инициализирует объект модели YandexGPT.
 
-        :param authKey: Ключ авторизации для API.
-        :param cloudBranch: Ветка облака для модели.
-        :param temperature: Температура генерации текста.
+        Args:
+            authKey (str): Ключ авторизации для API.
+            cloudBranch (str): Ветка облака для модели.
+            temperature (float): Температура генерации текста.
         """
         self._headers ={
         "Content-Type": "application/json",
@@ -37,9 +38,11 @@ class YandexGPTModel:
         """
         Заполняет запрос для модели GPT.
 
-        :param message: Сообщение для модели.
-        :param messages: Список сообщений.
-        :return: Заполненный запрос.
+        Args:
+            messages (list): Список сообщений.
+
+        Returns:
+            dict: Заполненный запрос.
         """
         return {
             "modelUri": self._modelUrl,
@@ -51,8 +54,11 @@ class YandexGPTModel:
         """
         Отправляет запрос к модели GPT.
 
-        :param messages: Список сообщений.
-        :return: Ответ модели.
+        Args:
+            messages (list): Список сообщений.
+
+        Returns:
+            str: Ответ модели.
         """
         prompt = self._fillGPTPrompt(messages)
 
@@ -83,7 +89,15 @@ class YandexGPTChatBot:
     
     
     def __init__(self, gpt:YandexGPTModel, db:DataBase, crm:CrmDataManagerInterface, contextDB:ContextDataBase):
-        
+        """
+        Инициализирует объект чат-бота YandexGPT.
+
+        Args:
+            gpt (YandexGPTModel): Экземпляр модели YandexGPT.
+            db (DataBase): Экземпляр базы данных.
+            crm (CrmDataManagerInterface): Интерфейс менеджера данных CRM.
+            contextDB (ContextDataBase): Контекстная база данных.
+        """
         self._gpt = gpt
         self._db = db
         self._contextDB = contextDB
@@ -94,6 +108,15 @@ class YandexGPTChatBot:
         self._analizer = GPTTextAnalyzer(gpt,crm,db)
 
     def _getContext(self, chatId:str) -> list[dict[str:str]]:
+        """
+        Получает контекст чата по идентификатору чата.
+
+        Args:
+            chatId (str): Идентификатор чата.
+
+        Returns:
+            list[dict[str:str]]: Список сообщений контекста.
+        """
         if not chatId in self._currentContext: 
             if self._contextDB.findContext(chatId):
                 self._currentContext.update({chatId:self._contextDB.getContext(chatId)})
@@ -103,15 +126,40 @@ class YandexGPTChatBot:
         return self._currentContext[chatId]
 
     def _delFromCurrentContext(self, chatId:str):
+        """
+        Удаляет контекст чата из текущего контекста.
+
+        Args:
+            chatId (str): Идентификатор чата.
+        """
         del self._currentContext[chatId]
 
     def _addToContext(self, chat:str, role:str, message:str):
+        """
+        Добавляет сообщение в контекст чата.
+
+        Args:
+            chat (str): Идентификатор чата.
+            role (str): Роль отправителя сообщения.
+            message (str): Текст сообщения.
+        """
         self._currentContext[chat].append({
             "role" : role,
             "text": message
         })
 
     def _getMessage(self, skriptKey:str, chat:str, message:dict = None) -> list[dict[str:str]]:
+        """
+        Получает сообщение для отправки в модель GPT.
+
+        Args:
+            skriptKey (str): Ключ сценария.
+            chat (str): Идентификатор чата.
+            message (dict, optional): Сообщение для отправки. Defaults to None.
+
+        Returns:
+            list[dict[str:str]]: Список сообщений для отправки.
+        """
         with open("prompts/chatBotPrompst.json", encoding='utf-8') as f:
             data = json.load(f)
         return [
@@ -135,14 +183,35 @@ class YandexGPTChatBot:
         ]
     
     def _getScenaries(self,chat:str, message:str) -> str:
-            answer = self._analizer.analyze(message)
-            if answer != 'None':
+        """
+        Получает сценарий для обработки сообщения.
+
+        Args:
+            chat (str): Идентификатор чата.
+            message (str): Текст сообщения.
+
+        Returns:
+            str: Ответ сценария.
+        """
+        answer = self._analizer.analyze(message)
+        if answer != 'None':
                 return answer
-            else:
+        else:
                 return None
         
         
-    def sendMessage(self, skriptKey:str, chat:str, message:str ): 
+    def sendMessage(self, skriptKey:str, chat:str, message:str ) -> str:
+        """
+        Отправляет сообщение в модель GPT и получает ответ.
+
+        Args:
+            skriptKey (str): Ключ сценария.
+            chat (str): Идентификатор чата.
+            message (str): Текст сообщения.
+
+        Returns:
+            str: Ответ модели GPT.
+        """
         gptMessage = self._gpt.request(self._getMessage(skriptKey,chat,message))
         self._addToContext(chat, message['role'], message['text'])
         self._addToContext(chat, "assistant", gptMessage)
@@ -153,85 +222,220 @@ class YandexGPTChatBot:
     
 
 
+class UserMassageAnalyzer:
+    def __init__(self, gpt:YandexGPTModel, instractionsPath:str):
+        """
+        Инициализирует объект анализатора сообщений пользователя.
 
-class GPTTextAnalyzer:
-
-    # class _Message(TypedDict):
-    #     role:str
-    #     text:str
-
-    def __init__(self,gpt:YandexGPTModel, crm:CrmDataManagerInterface, db:DataBase):
+        Args:
+            gpt (YandexGPTModel): Экземпляр модели YandexGPT.
+            instractionsPath (str): Путь к файлу инструкций.
+        """
         self._gpt = gpt
-        self.db = db
-        self._crm = crm
-        self.scenariesKeys = []
-        pass
+        self._instractionsPath = instractionsPath
+    
+    def _getScenaries(self, instructionsData:dict) -> str:
+        """
+        Получает сценарии из данных инструкций.
 
-    def _getScenaries(self):
-        with open("prompts/chatBotPrompst.json", encoding='utf-8') as f:
-            data = json.load(f)
-        self.scenariesKeys = data['scenaries'].keys()
+        Args:
+            instructionsData (dict): Данные инструкций.
 
-    async def _getMessage(self, message:list):
-        with open("prompts/chatBotPrompst.json", encoding='utf-8') as f:
-            data = json.load(f)
+        Returns:
+            str: Строка с возможными сценариями.
+        """
+        scenaries = "Возможные сценарии: \n"
+        for key in instructionsData['scenaries'].keys():
+            scenaries += key + ": "+ instructionsData['scenaries'][key] + "\n"
+        return scenaries
+
+    def _getPrompt(self, message:str) -> list:
+        """
+        Получает запрос для модели GPT.
+
+        Args:
+            message (str): Сообщение пользователя.
+
+        Returns:
+            list: Список сообщений для отправки в модель GPT.
+        """
+        with open(self._instractionsPath, encoding='utf-8') as f:
+            instructionData = json.load(f)
         return [
             {
             "role": "system",
-            "text": data['introduce']
+            "text": instructionData['instruction']
             },
             {
             "role": "system",
-            "text": data['scenaries']['worksOff']
+            "text": self._getScenaries(instructionData)
             },
             {
-            "role": message['role'],
-            "text": message['text']
+                "role": "user",
+                "text": message
             }
         ]
+
+    def analyze(self, message:str) -> str:
+        """
+        Анализирует сообщение пользователя и отправляет его в модель GPT.
+
+        Args:
+            message (str): Сообщение пользователя.
+
+        Returns:
+            str: Ответ модели GPT.
+        """
+        return self._gpt.request(self._getPrompt(message))
+      
+
+
+
+
+# class GPTTextAnalyzer:
+
+#     # class _Message(TypedDict):
+#     #     role:str
+#     #     text:str
+
+#     def __init__(self,gpt:YandexGPTModel, crm:CrmDataManagerInterface, db:DataBase):
+#         """
+#         Инициализирует объект анализатора текста GPT.
+
+#         Args:
+#             gpt (YandexGPTModel): Экземпляр модели YandexGPT.
+#             crm (CrmDataManagerInterface): Интерфейс менеджера данных CRM.
+#             db (DataBase): Экземпляр базы данных.
+#         """
+#         self._gpt = gpt
+#         self.db = db
+#         self._crm = crm
+#         self.scenariesKeys = []
+#         pass
+
+#     def _getScenaries(self):
+#         """
+#         Получает сценарии из файла конфигурации.
+#         """
+#         with open("prompts/chatBotPrompst.json", encoding='utf-8') as f:
+#             data = json.load(f)
+#         self.scenariesKeys = data['scenaries'].keys()
+
+#     async def _getMessage(self, message:list) -> list[dict[str:str]]:
+#         """
+#         Получает сообщение для отправки в модель GPT.
+
+#         Args:
+#             message (list): Список сообщений.
+
+#         Returns:
+#             list[dict[str:str]]: Список сообщений для отправки.
+#         """
+#         with open("prompts/chatBotPrompst.json", encoding='utf-8') as f:
+#             data = json.load(f)
+#         return [
+#             {
+#             "role": "system",
+#             "text": data['introduce']
+#             },
+#             {
+#             "role": "system",
+#             "text": data['scenaries']['worksOff']
+#             },
+#             {
+#             "role": message['role'],
+#             "text": message['text']
+#             }
+#         ]
     
-    def analyzeGPTAnswer(self, answer:messageData):
-        message = answer["text"]
-        if "|" in answer["text"]:
-            message = self._analyzeSystemMessage(answer)
-            pass
-        if "help" in answer["text"].lower():
-            pass
-        if "пользователь" in answer["text"].lower():
-            pass
-        return message
+#     def analyzeGPTAnswer(self, answer:messageData) -> str:
+#         """
+#         Анализирует ответ модели GPT.
+
+#         Args:
+#             answer (messageData): Ответ модели GPT.
+
+#         Returns:
+#             str: Проанализированный ответ.
+#         """
+#         message = answer["text"]
+#         if "|" in answer["text"]:
+#             message = self._analyzeSystemMessage(answer)
+#             pass
+#         if "help" in answer["text"].lower():
+#             pass
+#         if "пользователь" in answer["text"].lower():
+
+
+
+
+
+#             pass
+#         return message
    
    
-    def _analyzeSystemMessage(self, answer:messageData):
-        message = answer['text'].split('|')
-        if "отработк" in message[0].lower():
-            self._processWorkOffMessage(message, answer['chat'])
-            pass
-        return message[-1]
+#     def _analyzeSystemMessage(self, answer:messageData) -> str:
+#         """
+#         Анализирует системное сообщение.
+
+#         Args:
+#             answer (messageData): Ответ модели GPT.
+
+#         Returns:
+#             str: Проанализированное системное сообщение.
+#         """
+#         message = answer['text'].split('|')
+#         if "отработк" in message[0].lower():
+#             self._processWorkOffMessage(message, answer['chat'])
+#             pass
+#         return message[-1]
    
    
-    def _processWorkOffMessage(self, message:list, chat:str):
-        if message[1].lower() == 'success':
-            self._addWorkOffToCRM(chat, message)
-            pass
-        elif message[1].lower() == 'fail':
-            pass
+#     def _processWorkOffMessage(self, message:list, chat:str):
+#         """
+#         Обрабатывает сообщение об отработке.
+
+#         Args:
+#             message (list): Список сообщений.
+#             chat (str): Идентификатор чата.
+#         """
+#         if message[1].lower() == 'success':
+#             self._addWorkOffToCRM(chat, message)
+#             pass
+#         elif message[1].lower() == 'fail':
+#             pass
     
-    def _addWorkOffToCRM(self, chat:str, message:list):
-        student = self.db.getStudent(chat)
-        group = self.db.getGroup(int(message[2]))
-        data = {
-            "topic": student['topic'],
-            "lesson_date": getDateNextWeekday(group['weekday']).strftime('%d-%m-%Y'),
-            "costumer_ids": list(student['id']),
-            "time_from": group['timeFrom'],
-            "duration": (datetime.datetime.strptime(group['timeTo'],"%H:%M") - datetime.datetime.strptime(group['timeFrom'],"%H:%M")).total_seconds()//60,
-            "subject_id": group['subjectId'],
-            "teacher_id": list(group['teacherId']),
-        }
-        self._crm.addWorkOff(data)
-        pass
+#     def _addWorkOffToCRM(self, chat:str, message:list):
+#         """
+#         Добавляет отработку в CRM.
+
+#         Args:
+#             chat (str): Идентификатор чата.
+#             message (list): Список сообщений.
+#         """
+#         student = self.db.getStudent(chat)
+#         group = self.db.getGroup(int(message[2]))
+#         data = {
+#             "topic": student['topic'],
+#             "lesson_date": getDateNextWeekday(group['weekday']).strftime('%d-%m-%Y'),
+#             "costumer_ids": list(student['id']),
+#             "time_from": group['timeFrom'],
+#             "duration": (datetime.datetime.strptime(group['timeTo'],"%H:%M") - datetime.datetime.strptime(group['timeFrom'],"%H:%M")).total_seconds()//60,
+#             "subject_id": group['subjectId'],
+#             "teacher_id": list(group['teacherId']),
+#         }
+#         self._crm.addWorkOff(data)
+#         pass
     
    
-    async def analyzeMessage(self, message:str):
-        return self._gpt.request(await self._getMessage(message))
+#     async def analyzeMessage(self, message:str) -> str:
+#         """
+#         Анализирует сообщение и отправляет его в модель GPT.
+
+#         Args:
+#             message (str): Текст сообщения.
+
+#         Returns:
+#             str: Ответ модели GPT.
+#         """
+#         return self._gpt.request(await self._getMessage(message))
