@@ -89,7 +89,7 @@ class DataBase:
                     cursor.execute("SELECT * FROM GroupOccupancy WHERE(idGroup=?)",[int(item[0])])
                     if not cursor.fetchone():
                         cursor.execute("INSERT INTO GroupOccupancy (idGroup,idsStudents,dateOfEvent,count,lastUpdate) VALUES (?,?,?,?,?)", 
-                                        (id, idsStudents, getDateNextWeekday(item[5]).strftime('%Y-%m-%d'), len(item[2].split(',')), datetime.date.today()  ))
+                                        (id, idsStudents, getDateNextWeekday(item[5]).strftime('%d.%m.%Y'), len(item[2].split(',')), datetime.date.today()  ))
         except sqlite3.Error as e:
             print(f"Ошибка при добавлении данных в таблицу GroupOccupancy: {e}")
    
@@ -233,7 +233,7 @@ class DataBase:
 
          
     
-    def updateData(self, data:dict[str:any],  tableName:str, selectPams:dict[str:any] = None) -> None:
+    def updateData(self, data:dict[str:any],  tableName:str, selectPams:dict[str:any] | None ) -> None:
         """
         Обновляет данные в указанной таблице.
 
@@ -338,7 +338,8 @@ class DataBase:
             'timeTo' : lesson[7],
             'assignWorkOffs' : lesson[8],
             'maxStudents' : lesson[9],
-            'lastUpdate' : lesson[10]
+            'lastUpdate' : lesson[10],
+            'subjectId' : lesson[11],
         }
     
     def _formatStudentAbsence(self, student:tuple) -> dict[str:any]:
@@ -380,7 +381,21 @@ class DataBase:
             'worksOffsTopics': group[6]
         }
     
-    def getAllGroupsOccupancy(self, idGroup: int = None, idLocation:str = None) -> str:
+    def getGroupOccupancyData(self, idGroup:int) -> dict[str:any]:
+        """
+        Возвращает данные о заполненности группы по идентификатору.
+
+        :param idGroup: Идентификатор группы.
+        :return: Словарь с данными о заполненности группы.
+        """
+        try:
+            group = self._selectOneData('GroupOccupancy', 'idGroup', idGroup)
+            return self._formatGroupOccupancyData(group)
+        except sqlite3.Error as e:
+            print(f"Ошибка при получении данных о заполненности группы: {e}")
+
+
+    def getGroupsOccupancy(self, idGroup: int = None, idLocation:str = None) -> str:
         """
         Возвращает строку с информацией о доступных группах.
         Параметры:
@@ -462,7 +477,7 @@ class DataBase:
         except sqlite3.Error as e:
             print(f"Ошибка при выполнении SELECT запроса: {e}")
 
-    def getGroup(self, idGroup:int) -> dict:
+    def getRegularLessons(self, idGroup:int) -> dict:
         """
         Возвращает данные о группе по идентификатору.
 
@@ -475,6 +490,10 @@ class DataBase:
         except sqlite3.Error as e:
             print(f"Ошибка при получении данных о группе: {e}")
     
+   
+
+
+
     def getStudent(self, phoneNumber:str) -> dict:
         """
         Возвращает данные о студенте по идентификатору.
@@ -488,18 +507,7 @@ class DataBase:
         except sqlite3.Error as e:
             print(f"Ошибка при получении данных о студенте: {e}")
 
-    def getGroup(self, idGroup:int)->dict:
-        """
-        Возвращает данные о группе по идентификатору.
-
-        :param idGroup: Идентификатор группы.
-        :return: Словарь с данными о группе.
-        """
-        try:
-            group = self._selectOneData('RegularLessons', 'idGroup', idGroup)
-            return self._formatRegularLesson(group)
-        except sqlite3.Error as e:
-            print(f"Ошибка при получении данных о группе: {e}")
+    
     def getAllLocations(self):
         """
         Возвращает список локаций.

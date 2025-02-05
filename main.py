@@ -21,17 +21,17 @@ db = DataBase('dataBase\dataBases\mainDataBase.db')
 contextDb = ContextDataBase("dataBase/dataBases/contextDataBase.db")
 model = YandexGPTModel(autorization.yandexGPTKey,autorization.yandexCloudIdentificator, 1)
 crm = AlfaCRM(autorization.crmhostname, autorization.crmEmail, autorization.crmKey)
-
-chatBot = YandexGPTChatBot(model, db,crm,contextDb)
+dataManager = AlfaCRMDataManager(crm)
+chatBot = YandexGPTChatBot(model, db, dataManager,contextDb)
 student = db.getStudentAbsences()
-groups = db.getAllGroupsOccupancy(student[8]['idGroup'],student[8]["location"])
-string = groups + "\n"+"Кому назначается отработка: "+student[8]['text']
+groups = db.getGroupsOccupancy(student[0]['idGroup'],student[0]["location"])
+string = groups + "\n"+"Кому назначается отработка: "+student[0]['text']
 print(string)
-print(chatBot.sendMessage('Отработки', student[8]['phoneNumber'],{'role':"system", "text":string}))
+print(chatBot.sendMessage('Отработки', student[0]['phoneNumber'],{'role':"system", "text":string}))
 # Связь между lessons и regularLessons устанавливается полем regularId
 while(True):
     message = input()
-    print(chatBot.sendMessage('worksOff', student[8]['phoneNumber'],{'role':"user", "text":message}))
+    print(chatBot.sendMessage('worksOff', student[0]['phoneNumber'],{'role':"user", "text":message}))
 
 
 
@@ -46,6 +46,6 @@ while(True):
 # crmToDBManager.insertInStudentAbsences()
 # db.addDataInTableGroupOccupancy()
 
-#Выполняется слишком долго, подумать над хранением данных клиентов локально
-#Добавить класс для внесения изменений в AlfaCRM
-#Документирование кода 
+# Выполняется слишком долго, подумать над хранением данных клиентов локально
+# Добавить класс для внесения изменений в AlfaCRM
+# Документирование кода 

@@ -4,6 +4,7 @@ from dataBase.DataBase import DataBase, ContextDataBase,getDateNextWeekday
 from typing import TypedDict
 from crm.alfaCRM import CrmDataManagerInterface 
 import datetime
+import numpy as np
 class messageData(TypedDict):
         chat:str
         text:str
@@ -68,7 +69,160 @@ class YandexGPTModel:
         if 'result' in r.text:
             return json.loads(r.text)['result']["alternatives"][0]["message"]['text']
         return r.text
-   
+
+class ChatScriptAnalyzer:
+    def __init__(self, gpt:YandexGPTModel, instractionsPath:str):
+        """
+        Инициализирует объект анализатора сообщений пользователя.
+
+        Args:
+            gpt (YandexGPTModel): Экземпляр модели YandexGPT.
+            instractionsPath (str): Путь к файлу инструкций.
+        """
+        self._gpt = gpt
+        self._instractionsPath = instractionsPath
+    
+    def _getScenaries(self, instructionsData:dict) -> str:
+        """
+        Получает сценарии из данных инструкций.
+
+        Args:
+            instructionsData (dict): Данные инструкций.
+
+        Returns:
+            str: Строка с возможными сценариями.
+        """
+        scenaries = "Возможные сценарии: \n"
+        for key in instructionsData['scenaries'].keys():
+            scenaries += key + ": "+ instructionsData['scenaries'][key] + "\n"
+        return scenaries
+
+    def _getPrompt(self, message:str) -> list:
+        """
+        Получает запрос для модели GPT.
+
+        Args:
+            message (str): Сообщение пользователя.
+
+        Returns:
+            list: Список сообщений для отправки в модель GPT.
+        """
+        with open(self._instractionsPath, encoding='utf-8') as f:
+            instructionData = json.load(f)
+        return [
+            {
+            "role": "system",
+            "text": instructionData['instruction']
+            },
+            {
+            "role": "system",
+            "text": self._getScenaries(instructionData)
+            },
+            {
+                "role": "user",
+                "text": message
+            }
+        ]
+
+    def analyze(self, message:str) -> str:
+        """
+        Анализирует сообщение пользователя и отправляет его в модель GPT.
+
+        Args:
+            message (str): Сообщение пользователя.
+
+        Returns:
+            str: Ответ модели GPT.
+        """
+        return self._gpt.request(self._getPrompt(message))
+      
+
+class MessageAnalyzer:
+    class _Message(TypedDict):
+        chatId:str
+        text:str
+        
+    def __init__(self, chatAnalyzer:ChatScriptAnalyzer, db:DataBase, crm:CrmDataManagerInterface):
+        """
+        Инициализирует объект анализатора сообщений.
+
+        Args:
+            chatAnalyzer (ChatScriptAnalyzer): Экземпляр анализатора сценариев.
+            db (DataBase): Экземпляр базы данных.
+            crm (CrmDataManagerInterface): Интерфейс менеджера данных CRM.
+        """
+        self._chatAnalyzer = chatAnalyzer
+        self._db = db
+        self._crm = crm
+    
+
+    def analyzeGPTAnswer(self, data:_Message):
+        message = data['text']
+        if "|" in data['text']:
+           message = self._analyzeSystemMessage(data)
+        return message
+
+    def _analyzeSystemMessage(self, data:_Message):
+        message = data['text'].split('|')
+        if "отработк" in message[0].lower():
+            self._processWorkOffMessage(data)
+            pass
+        return message[-1]
+        pass
+
+    def _processWorkOffMessage(self, data:_Message):
+        message = data['text'].split('|')
+        if 'success' in message[1].lower() :
+            self._workOffSuccess(data)
+            pass
+        elif message[1].lower() == 'fail':
+            self._workOffFail(data)
+            pass
+        pass
+
+    def _workOffSuccess(self, data:_Message):
+        """
+        Обрабатывает успешное сообщение об отработке.
+
+        Args:
+            data (_Message): Данные сообщения, включающие идентификатор чата и текст сообщения.
+        """
+        try:
+            idGroup = int(data['text'].split('|')[2])
+            student = self._db.getStudent(data['chatId'])
+            regularLesson = self._db.getRegularLessons(idGroup)
+            groupOccupancy = self._db.getGroupOccupancyData(idGroup)
+            dataForCRM = {
+                'topic': student['topic'],
+                'lesson_date': groupOccupancy['dateOfEvent'],
+                'customer_ids':list([student['idStudent']]),
+                'time_from': regularLesson['timeFrom'],
+                'duration': getDuration(regularLesson['timeFrom'], regularLesson['timeTo']),
+                'subject_id': regularLesson['subjectId'],
+                'teacher_ids': list([regularLesson['teacher']])
+            }
+
+            dataForDB = {
+                'worksOffsTopics': f"{groupOccupancy['worksOffsTopics']}, {student['topic']}",
+                'newStudents': f"{groupOccupancy['newStudents']}, {student['idStudent']}",
+                'count': groupOccupancy['count'] + 1
+            }
+            self._crm.addWorkOff(dataForCRM)
+            self._db.updateData(dataForDB, "groupOccupancy", {'idGroup': idGroup})
+        except Exception as e:
+            print(f"An error occurred while processing work off success: {e}")
+        
+
+    def _workOffFail(self, data:_Message):
+        dateNextConnextion = int(messageData['text'].split('|')[2])
+        dataForDB = {
+            'dateLastConnection' : datetime.datetime.now().strftime('%Y-%m-%d'),
+            'dateNextConnection': getDateNextWeekday(datetime.datetime.now().weekday()).strftime('%Y-%m-%d')
+        }
+        self._db.updateData(dataForDB, "StudentAbsences", {'phoneNumber': messageData['idChat']})
+
+
+
 class YandexGPTChatBot:
     """
     _currentContext - список, следующего вида
@@ -105,7 +259,7 @@ class YandexGPTChatBot:
         self._groups = []
         self.students = []
         self._currentMessages = {}
-        self._analizer = GPTTextAnalyzer(gpt,crm,db)
+        self.messageAnalyzer = MessageAnalyzer(ChatScriptAnalyzer(gpt, "prompts/chatBotPrompst.json"), db, crm)
 
     def _getContext(self, chatId:str) -> list[dict[str:str]]:
         """
@@ -213,85 +367,29 @@ class YandexGPTChatBot:
             str: Ответ модели GPT.
         """
         gptMessage = self._gpt.request(self._getMessage(skriptKey,chat,message))
+        gptMessageForUser = self.messageAnalyzer.analyzeGPTAnswer({"chatId":chat, "text":gptMessage})
         self._addToContext(chat, message['role'], message['text'])
         self._addToContext(chat, "assistant", gptMessage)
         
         
-        return gptMessage
+        return gptMessageForUser
         
     
 
 
-class UserMassageAnalyzer:
-    def __init__(self, gpt:YandexGPTModel, instractionsPath:str):
-        """
-        Инициализирует объект анализатора сообщений пользователя.
 
-        Args:
-            gpt (YandexGPTModel): Экземпляр модели YandexGPT.
-            instractionsPath (str): Путь к файлу инструкций.
-        """
-        self._gpt = gpt
-        self._instractionsPath = instractionsPath
-    
-    def _getScenaries(self, instructionsData:dict) -> str:
-        """
-        Получает сценарии из данных инструкций.
+def getDuration(timeFrom:str, timeTo:str) -> int:
+    """
+    Получает длительность урока.
 
-        Args:
-            instructionsData (dict): Данные инструкций.
+    Args:
+        timeFrom (str): Время начала урока.
+        timeTo (str): Время окончания урока.
 
-        Returns:
-            str: Строка с возможными сценариями.
-        """
-        scenaries = "Возможные сценарии: \n"
-        for key in instructionsData['scenaries'].keys():
-            scenaries += key + ": "+ instructionsData['scenaries'][key] + "\n"
-        return scenaries
-
-    def _getPrompt(self, message:str) -> list:
-        """
-        Получает запрос для модели GPT.
-
-        Args:
-            message (str): Сообщение пользователя.
-
-        Returns:
-            list: Список сообщений для отправки в модель GPT.
-        """
-        with open(self._instractionsPath, encoding='utf-8') as f:
-            instructionData = json.load(f)
-        return [
-            {
-            "role": "system",
-            "text": instructionData['instruction']
-            },
-            {
-            "role": "system",
-            "text": self._getScenaries(instructionData)
-            },
-            {
-                "role": "user",
-                "text": message
-            }
-        ]
-
-    def analyze(self, message:str) -> str:
-        """
-        Анализирует сообщение пользователя и отправляет его в модель GPT.
-
-        Args:
-            message (str): Сообщение пользователя.
-
-        Returns:
-            str: Ответ модели GPT.
-        """
-        return self._gpt.request(self._getPrompt(message))
-      
-
-
-
-
+    Returns:
+        int: Длительность урока.
+    """
+    return (datetime.datetime.strptime(timeTo,"%H:%M") - datetime.datetime.strptime(timeFrom,"%H:%M")).total_seconds()//60
 # class GPTTextAnalyzer:
 
 #     # class _Message(TypedDict):

@@ -123,8 +123,9 @@ class AlfaCRM:
         Returns:
             str: Ответ от сервера.
         """
+        self._header.update({'Content-Type': 'application/json', 'Accept': 'application/json'})
         path = f"https://{self._hostname}/v2api/{self._brunchId}/{self._createModels[model]}"
-        r = requests.post(path,data,headers = self._header)
+        r = requests.post(path,json.dumps(data),headers = self._header)
         return r.text
         
     def getData(self,model:str, data: dict[str:any]) -> list:
@@ -180,7 +181,7 @@ class AlfaCRMDataManager(CrmDataManagerInterface):
         ADD_TO_CURRENT_GROUP = 0
         ADD_TO_NEW_LESSON = 1
     
-    def __init__(self, crm:AlfaCRM,workOffType: 'AlfaCRMDataManager.WorkOffType' = 1, updatePeriotByNexLesson:int = 7, updatePeriodByPrevLesson:int = 7):
+    def __init__(self, crm:AlfaCRM,workOffType: 'AlfaCRMDataManager.WorkOffType' = WorkOffType.ADD_TO_NEW_LESSON, updatePeriotByNexLesson:int = 7, updatePeriodByPrevLesson:int = 7):
         """
         Инициализирует менеджер данных CRM.
 
@@ -292,7 +293,7 @@ class AlfaCRMDataManager(CrmDataManagerInterface):
         regularLesson = []
         for page in nextLesson:
             for item in page:
-                print(f"getRegularLessonsByLocationId {item}")
+                print("Группа: " + str(item['group_ids'][0]))
                 groupId =item['group_ids'][0]
                 prev = self._getPreviusLessonByGroupId(groupId)[0]
                 regularLesson.append(
