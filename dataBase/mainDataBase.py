@@ -1,10 +1,7 @@
 import sqlite3
-from contextlib import contextmanager
+from functions.functions import db_ops, getDateNextWeekday, getNameDay, assignWorkOffsToText
 import datetime
-
-
-from contextlib import contextmanager
-import datetime
+from mTyping.dictTypes import RegularLessonDict, StudentAbsenceDict, LocationDict, GroupOccupancyDict
 
 
 class DataBase:
@@ -43,10 +40,12 @@ class DataBase:
                     CREATE TABLE IF NOT EXISTS GroupOccupancy(
                     idGroup INTEGER,
                     newStudents TEXT,
+                    
                     idsStudents TEXT,
                     dateOfEvent TEXT,
                     count INTEGER DEFAULT 0,
-                    lastUpdate TEXT 
+                    lastUpdate TEXT,
+                    worksOffsTopics TEXT
                     );
                     CREATE TABLE IF NOT EXISTS RegularLessons(
                     idGroup INTEGER NOT NULL,
@@ -59,7 +58,8 @@ class DataBase:
                     timeTo TEXT NOT NULL,
                     assignWorkOffs INTEGER DEFAULT 1,
                     maxStudents INTEGER NOT NULL,
-                    lastUpdate TEXT NOT NULL
+                    lastUpdate TEXT NOT NULL,
+                    subjectId INTEGER 
                     );
                     CREATE TABLE IF NOT EXISTS Locations(
                     id INTEGER NOT NULL,
@@ -89,12 +89,12 @@ class DataBase:
                     cursor.execute("SELECT * FROM GroupOccupancy WHERE(idGroup=?)",[int(item[0])])
                     if not cursor.fetchone():
                         cursor.execute("INSERT INTO GroupOccupancy (idGroup,idsStudents,dateOfEvent,count,lastUpdate) VALUES (?,?,?,?,?)", 
-                                        (id, idsStudents, getDateNextWeekday(item[5]).strftime('%Y-%m-%d'), len(item[2].split(',')), datetime.date.today()  ))
+                                        (id, idsStudents, getDateNextWeekday(item[5]).strftime('%d.%m.%Y'), len(item[2].split(',')), datetime.date.today()  ))
         except sqlite3.Error as e:
             print(f"Ошибка при добавлении данных в таблицу GroupOccupancy: {e}")
    
    
-    def synchroniseTableRegularLessons(self, groups:list[dict[str:any]]) -> None:
+    def synchroniseTableRegularLessons(self, groups:list[RegularLessonDict]) -> None:
         """
         Синхронизирует таблицу RegularLessons с предоставленными данными.
 
@@ -105,13 +105,13 @@ class DataBase:
                 cursor.execute("DELETE FROM RegularLessons")
             for i in groups:
                 with db_ops(self.path) as cursor:
-                    cursor.execute('INSERT INTO RegularLessons (idGroup,topic,idsStudents,location,teacher,day,timeFrom,timeTo,maxStudents,lastUpdate) VALUES(?,?,?,?,?,?,?,?,?,?)', 
-                                (i['idGroup'], i['topic'],i['idsStudents'], i['location'],i['teacher'],i['day'],i['timeFrom'],i['timeTo'],i['maxStudents'],i['lastUpdate']))
+                    cursor.execute('INSERT INTO RegularLessons (idGroup,topic,idsStudents,location,teacher,day,timeFrom,timeTo,maxStudents,lastUpdate,subjectId) VALUES(?,?,?,?,?,?,?,?,?,?,?)', 
+                                (i['idGroup'], i['topic'],i['idsStudents'], i['location'],i['teacher'],i['day'],i['timeFrom'],i['timeTo'],i['maxStudents'],i['lastUpdate'], i['subjectId']))
         except sqlite3.Error as e:
-            print(f"Ошибка при синхронизации таблицы Teachers: {e}")      
+            print(f"Ошибка при синхронизации таблицы RegularLessons: {e}")      
    
    
-    def insertNewLocation(self, data:dict) -> None:
+    def insertNewLocation(self, data:LocationDict) -> None:
         """
         Вставляет новую запись о локации в таблицу Locations, если запись с таким ID не существует.
 
@@ -125,7 +125,7 @@ class DataBase:
         except sqlite3.Error as e:
             print(f"Ошибка при добавлении записи в таблицу location: {e}")      
    
-    def synchroniseTeachers(self, data:dict)->None:
+    def synchroniseTeachers(self, data:LocationDict)->None:
         """
         Вставляет новую запись о локации в таблицу Locations, если запись с таким ID не существует.
 
@@ -140,7 +140,7 @@ class DataBase:
             print(f"Ошибка при синхронизации таблицы Teachers: {e}")
     
     
-    def fillTableStudentAbsences(self, students:list) -> None:
+    def fillTableStudentAbsences(self, students:list[StudentAbsenceDict]) -> None:
         """
         Заполняет таблицу StudentAbsences данными об отсутствии студентов.
 
@@ -156,7 +156,7 @@ class DataBase:
         except sqlite3.Error as e:
             print(f"Ошибка при заполнении таблицы StudentAbsences: {e}")   
 
-    def _formatLocationsOrTeachers(self, data:list[tuple]) -> dict[str:any]:
+    def _formatLocationsOrTeachers(self, data:list[tuple]) -> dict[LocationDict]:
         """
         Форматирует данные о локациях или преподавателях.
 
@@ -171,7 +171,7 @@ class DataBase:
         except sqlite3.Error as e:
             print(f"Ошибка при форматировании данных о локациях или преподавателях: {e}")
     
-    def _formatLocationOrTeacher(self, data:tuple) -> list[dict[str:any]]:
+    def _formatLocationOrTeacher(self, data:tuple) -> list[LocationDict]:
         """
         Форматирует данные о локации или преподавателе.
 
@@ -197,7 +197,7 @@ class DataBase:
             print(f"Ошибка при получении идентификаторов регулярных занятий: {e}")
         return groupsIds
     
-    def _formatGroupsOccupancyData(self, groups:list) -> list[dict[str:any]]:
+    def _formatGroupsOccupancyData(self, groups:list[RegularLessonDict]) -> list[GroupOccupancyDict]:
         """
         Форматирует данные о заполненности групп.
 
@@ -208,7 +208,6 @@ class DataBase:
         for i in groups:
             allGroups.append(self._formatGroupOccupancyData(i))
         return allGroups
-    
     
     def _selectData(self, tableName:str, field:str = None, param = None) -> list[tuple]:
         """
@@ -224,15 +223,17 @@ class DataBase:
             params = ()
             if param:
                 sql += f" WHERE {field} = ?"
-                params = (param,) 
+                params = (param,)
             with db_ops(self.path) as cursor:
                 cursor.execute(sql, params)
                 groups = cursor.fetchall()
             return groups
         except sqlite3.Error as e:
-            print(f"Ошибка при выполнении SELECT запроса: {e}")       
+            print(f"Ошибка при выполнении SELECT запроса: {e}")
+
+         
     
-    def updateData(self, data:dict[str:any],  tableName:str, selectPams:dict[str:any] = None) -> None:
+    def updateData(self, data:dict[str:any],  tableName:str, selectPams:dict[str:any] | None ) -> None:
         """
         Обновляет данные в указанной таблице.
 
@@ -259,7 +260,7 @@ class DataBase:
        
 
        
-    def _fromatRegularLessons(self, lessons:list[tuple]) -> list[dict]:
+    def _fromatRegularLessons(self, lessons:list[tuple]) -> list[RegularLessonDict]:
         """
         Форматирует данные о регулярных занятиях.
 
@@ -273,27 +274,8 @@ class DataBase:
 
     
     
-    def _selectData(self, tableName:str, field:str = None, param = None) -> list[tuple]:
-        """
-        Выполняет SELECT запрос к базе данных.
 
-        :param tableName: Название таблицы.
-        :param field: Поле для условия WHERE.
-        :param param: Значение для условия WHERE.
-        :return: Список кортежей с результатами запроса.
-        """
-        try:
-            sql = f"SELECT * FROM {tableName}"
-            if param:
-                sql += f" WHERE({field} = {param})"
-            with db_ops(self.path) as cursor:
-                cursor.execute(sql)
-                groups = cursor.fetchall()
-            return groups
-        except sqlite3.Error as e:
-            print(f"Ошибка при выполнении SELECT запроса: {e}")
-    
-    def _fromatRegularLessons(self, lessons:list[tuple]) -> list[dict]:
+    def _fromatRegularLessons(self, lessons:list[tuple]) -> list[RegularLessonDict]:
         """
         Форматирует данные о регулярном занятии.
 
@@ -305,7 +287,7 @@ class DataBase:
            regularLessonsList.append(self._formatRegularLesson(i))
         return regularLessonsList
 
-    def _formatStudentsAbsences(self, students:list[tuple]) -> list[dict[str:any]]:
+    def _formatStudentsAbsences(self, students:list[tuple]) -> list[StudentAbsenceDict]:
         """
         Форматирует данные об отсутствии студентов.
 
@@ -317,7 +299,7 @@ class DataBase:
             studentsList.append(self._formatStudentAbsence(i))
         return studentsList
     
-    def _formatRegularLesson(self, lesson:tuple) -> dict[str:any]:
+    def _formatRegularLesson(self, lesson:tuple) -> dict[RegularLessonDict]:
         """
         Форматирует данные о регулярном занятии.
 
@@ -335,10 +317,11 @@ class DataBase:
             'timeTo' : lesson[7],
             'assignWorkOffs' : lesson[8],
             'maxStudents' : lesson[9],
-            'lastUpdate' : lesson[10]
+            'lastUpdate' : lesson[10],
+            'subjectId' : lesson[11],
         }
     
-    def _formatStudentAbsence(self, student:tuple) -> dict[str:any]:
+    def _formatStudentAbsence(self, student:tuple) -> dict[StudentAbsenceDict]:
         """
         Форматирует данные об отсутствии студента.
 
@@ -360,7 +343,8 @@ class DataBase:
             'groupForWorkingOut': student[11]
 
         }
-    def _formatGroupOccupancyData(self, group:tuple) -> dict:
+    
+    def _formatGroupOccupancyData(self, group:tuple) -> GroupOccupancyDict:
         """
     Форматирует данные о заполненности групп.
 
@@ -373,10 +357,25 @@ class DataBase:
             'idsStudents' : group[2],
             'dateOfEvent' : group[3],
             'count' : group[4],
-            'lastUpdate': group[5]
+            'lastUpdate': group[5],
+            'worksOffsTopics': group[6]
         }
     
-    def getAllGroupsOccupancy(self, idGroup: int = None) -> str:
+    def getGroupOccupancyData(self, idGroup:int) -> dict[GroupOccupancyDict]:
+        """
+        Возвращает данные о заполненности группы по идентификатору.
+
+        :param idGroup: Идентификатор группы.
+        :return: Словарь с данными о заполненности группы.
+        """
+        try:
+            group = self._selectOneData('GroupOccupancy', 'idGroup', idGroup)
+            return self._formatGroupOccupancyData(group)
+        except sqlite3.Error as e:
+            print(f"Ошибка при получении данных о заполненности группы: {e}")
+
+
+    def getGroupsOccupancy(self, idGroup: int = None, idLocation:str = None) -> str:
         """
         Возвращает строку с информацией о доступных группах.
         Параметры:
@@ -388,24 +387,18 @@ class DataBase:
         string = "Доступные группы:\n"
         for i in groupsOccupancy:
             regularLesson = self._formatRegularLesson(self._selectData('RegularLessons', 'idGroup', i['idGroup'])[0])
-            if idGroup != regularLesson['idGroup']:
+            if idGroup != regularLesson['idGroup'] and idLocation == regularLesson['location']:
                 if i['count'] < regularLesson['maxStudents']:
                     location =self._formatLocationOrTeacher(self._selectData('Locations', 'id', regularLesson['location'])[0])
                     teacher =self._formatLocationOrTeacher(self._selectData('Teachers', 'id', regularLesson['teacher'])[0])
 
                     string += f"""
-                    Тема : {regularLesson['topic']}
-                    Локация : {location['name']}
-                    Преподаватель: {teacher['name']}
-                    День недели: {getNameDay(regularLesson['day'])}
-                    Время начала: {regularLesson['timeFrom']}
-                    Время окончания: {regularLesson['timeTo']}
-                    Назначать отработки: {assignWorkOffsToText(regularLesson['assignWorkOffs'])}
+                    id Группы:{regularLesson['idGroup']}, Основная тема : {regularLesson['topic']}, Темы отработок: {i['worksOffsTopics']}, Локация : {location['name']}, Преподаватель: {teacher['name']}, День недели: {getNameDay(regularLesson['day'])},Время начала: {regularLesson['timeFrom']},Время окончания: {regularLesson['timeTo']},Назначать отработки: {assignWorkOffsToText(regularLesson['assignWorkOffs'])}
                     """
         return string
    
 
-    def getStudentAbsences(self) -> list[dict[str:any]]:
+    def getStudentsAbsences(self) -> list[StudentAbsenceDict]:
         """
         Возвращает список отсутствий студентов с подробной информацией.
         Метод извлекает данные об отсутствиях студентов, форматирует их и добавляет
@@ -424,17 +417,17 @@ class DataBase:
                 location =self._formatLocationOrTeacher(self._selectData('Locations', 'id', regularLesson['location'])[0])
                 teacher =self._formatLocationOrTeacher(self._selectData('Teachers', 'id', regularLesson['teacher'])[0])
                 string = f"""
-                Имя: {i['name']}
+                Имя ребёнка: {i['name']}
                 Тема: {i['topic']}
-                Локация: {location['name']}
                 Преподаватель: {teacher['name']}
-                Дата: {i['date']}
-                Телефон: {i['phoneNumber']}
+                День основного занятия: {getNameDay(regularLesson['day'])}
+                Время начала основного занятия: {regularLesson['timeFrom']}
+                
                 """
-                students.append({'text':string, 'idGroup': int(i['idGroup'])})
+                students.append({'text':string, 'idGroup': int(i['idGroup']), 'location':regularLesson['location'],  "phoneNumber":i['phoneNumber']})
         return students
     
-    def deleteData(self, tableName:str, field:str, param) -> None:
+    def deleteData(self, tableName:str, field:str, value:any) -> None:
         """
         Удаляет данные из указанной таблицы.
 
@@ -444,154 +437,65 @@ class DataBase:
         """
         try:
             with db_ops(self.path) as cursor:
-                cursor.execute(f"DELETE FROM {tableName} WHERE {field} = ?", [param])
+                cursor.execute(f"DELETE FROM {tableName} WHERE {field} = ?", [value])
         except sqlite3.Error as e:
             print(f"Ошибка при удалении данных из таблицы {tableName}: {e}")
     
-class ContextDataBase:
-    def __init__(self, path:str):
+    def _selectOneData(self, tableName:str, field:str, param:any) -> tuple:
         """
-        Инициализирует объект базы данных контекста.
+        Выполняет SELECT запрос к базе данных и возвращает одну запись.
 
-        :param path: Путь к файлу базы данных.
+        :param tableName: Название таблицы.
+        :param field: Поле для условия WHERE.
+        :param param: Значение для условия WHERE.
+        :return: Кортеж с результатом запроса.
         """
-        self.path = path
-        self._createTables()
+        try:
+            with db_ops(self.path) as cursor:
+                cursor.execute(f"SELECT * FROM {tableName} WHERE {field} = ?", [param])
+                return cursor.fetchone()
+        except sqlite3.Error as e:
+            print(f"Ошибка при выполнении SELECT запроса: {e}")
+
+    def getRegularLessons(self, idGroup:int) -> RegularLessonDict:
+        """
+        Возвращает данные о группе по идентификатору.
+
+        :param idGroup: Идентификатор группы.
+        :return: Словарь с данными о группе.
+        """
+        try:
+            group = self._selectOneData('RegularLessons', 'idGroup', idGroup)
+            return self._formatRegularLesson(group)
+        except sqlite3.Error as e:
+            print(f"Ошибка при получении данных о группе: {e}")
     
-    def _createTables(self):
-        """
-        Создает таблицу Context, если она не существует.
-        """
-        try:
-            with db_ops(self.path) as cursor:
-                cursor.execute(
-                    '''
-                    CREATE TABLE IF NOT EXISTS Context(
-                    chat TEXT PRIMARY KEY,
-                    context TEXT NOT NULL
-                    )
-                    '''
-                    )
-        except sqlite3.Error as e:
-            print(f"Ошибка при создании таблиц: {e}")
-    
-
-    def updateContext(self, chat:str, context:str) -> None:
-        """
-        Обновляет контекст для указанного чата.
-
-        :param chat: Идентификатор чата.
-        :param context: Новый контекст.
-        """
-        try:
-            with db_ops(self.path) as cursor:
-                cursor.execute("UPDATE Context SET context = ? WHERE chat = ?", [context, chat])
-        except sqlite3.Error as e:
-            print(f"Ошибка при обновлении контекста: {e}")
-    
-    def getContext(self, chat:str) -> str:
-        """
-        Возвращает контекст для указанного чата.
-
-        :param chat: Идентификатор чата.
-        :return: Контекст чата.
-        """
-        try:
-            with db_ops(self.path) as cursor:
-                cursor.execute("SELECT context FROM Context WHERE chat = ?", [chat])
-                context = cursor.fetchone()
-                if context:
-                    return list(context[0])
-                else:
-                    return None
-        except sqlite3.Error as e:
-            print(f"Ошибка при получении контекста: {e}")
-
-    def findContext(self, chat:str) -> bool:
-        """
-        Проверяет, существует ли контекст для указанного чата.
-
-        :param chat: Идентификатор чата.
-        :return: True, если контекст существует, иначе False.
-        """
-        try:
-            with db_ops(self.path) as cursor:
-                cursor.execute("SELECT * FROM Context WHERE chat = ?", [chat])
-                context = cursor.fetchone()
-                if context:
-                    return True
-                else:
-                    return False
-        except sqlite3.Error as e:
-            print(f"Ошибка при поиске контекста: {e}")
-
-    def insertContext(self, chat:str, context:str) -> None:
-        """
-        Вставляет новый контекст для указанного чата.
-
-        :param chat: Идентификатор чата.
-        :param context: Контекст чата.
-        """
-        try:
-            with db_ops(self.path) as cursor:
-                cursor.execute("INSERT INTO Context (chat, context) VALUES (?,?)", [chat, context])
-        except sqlite3.Error as e:
-            print(f"Ошибка при добавлении контекста: {e}")
-
-    def __enter__(self):
-        """
-        Возвращает объект базы данных при входе в контекстный менеджер.
-        """
-        return DataBase(self.path)
-    
-
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        """
-        Выполняет действия при выходе из контекстного менеджера.
-        """
-        pass
-@contextmanager
-def db_ops(db_name):
-    conn = sqlite3.connect(db_name)
-    try:
-        cur = conn.cursor()
-        yield cur
-    except Exception as e:
-        # do something with exception
-        conn.rollback()
-        raise e
-    else:
-        conn.commit()
-    finally:
-        conn.close()
-
-
-def getDateNextWeekday(numberDay:int):
    
-    d = datetime.timedelta( (7 + numberDay - datetime.date.today().weekday())%7 ).days
-    return  datetime.date.today() + datetime.timedelta(d)
 
-def getNameDay(day:int) ->str:
-    match(day):
-        case 0:
-            return 'Понедельник'
-        case 1:
-            return 'Вторник'
-        case 2:
-            return 'Среда'
-        case 3:
-            return 'Четверг'
-        case 4:
-            return 'Пятница'
-        case 5:
-            return 'Суббота'
-        case 6:
-            return 'Воскресенье'
-def assignWorkOffsToText(assignWorkOffs:int) -> str:
-    match assignWorkOffs:
-        case 0:
-            return "Не желательно"
-        case 1: 
-            return "Можно"
-        
+
+
+    def getStudent(self, phoneNumber:str) -> StudentAbsenceDict:
+        """
+        Возвращает данные о студенте по идентификатору.
+
+        :param idStudent: Идентификатор студента.
+        :return: Словарь с данными о студенте.
+        """
+        try:
+            student = self._selectOneData('StudentAbsences', 'phoneNumber', phoneNumber)
+            return self._formatStudentAbsence(student)
+        except sqlite3.Error as e:
+            print(f"Ошибка при получении данных о студенте: {e}")
+
+    
+    def getAllLocations(self) -> list[LocationDict]:
+        """
+        Возвращает список локаций.
+
+        :return: Список словарей с данными о локациях.
+        """
+        try:
+            locations = self._selectData('Locations')
+            return self._formatLocationsOrTeachers(locations)
+        except sqlite3.Error as e:
+            print(f"Ошибка при получении данных о локациях: {e}")
