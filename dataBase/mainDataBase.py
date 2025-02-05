@@ -1,7 +1,7 @@
 import sqlite3
-from contextlib import contextmanager
+from functions.functions import db_ops, getDateNextWeekday, getNameDay, assignWorkOffsToText
 import datetime
-
+from mTyping.dictTypes import RegularLessonDict, StudentAbsenceDict, LocationDict, GroupOccupancyDict
 
 
 class DataBase:
@@ -94,7 +94,7 @@ class DataBase:
             print(f"Ошибка при добавлении данных в таблицу GroupOccupancy: {e}")
    
    
-    def synchroniseTableRegularLessons(self, groups:list[dict[str:any]]) -> None:
+    def synchroniseTableRegularLessons(self, groups:list[RegularLessonDict]) -> None:
         """
         Синхронизирует таблицу RegularLessons с предоставленными данными.
 
@@ -111,7 +111,7 @@ class DataBase:
             print(f"Ошибка при синхронизации таблицы RegularLessons: {e}")      
    
    
-    def insertNewLocation(self, data:dict) -> None:
+    def insertNewLocation(self, data:LocationDict) -> None:
         """
         Вставляет новую запись о локации в таблицу Locations, если запись с таким ID не существует.
 
@@ -125,7 +125,7 @@ class DataBase:
         except sqlite3.Error as e:
             print(f"Ошибка при добавлении записи в таблицу location: {e}")      
    
-    def synchroniseTeachers(self, data:dict)->None:
+    def synchroniseTeachers(self, data:LocationDict)->None:
         """
         Вставляет новую запись о локации в таблицу Locations, если запись с таким ID не существует.
 
@@ -140,7 +140,7 @@ class DataBase:
             print(f"Ошибка при синхронизации таблицы Teachers: {e}")
     
     
-    def fillTableStudentAbsences(self, students:list) -> None:
+    def fillTableStudentAbsences(self, students:list[StudentAbsenceDict]) -> None:
         """
         Заполняет таблицу StudentAbsences данными об отсутствии студентов.
 
@@ -156,7 +156,7 @@ class DataBase:
         except sqlite3.Error as e:
             print(f"Ошибка при заполнении таблицы StudentAbsences: {e}")   
 
-    def _formatLocationsOrTeachers(self, data:list[tuple]) -> dict[str:any]:
+    def _formatLocationsOrTeachers(self, data:list[tuple]) -> dict[LocationDict]:
         """
         Форматирует данные о локациях или преподавателях.
 
@@ -171,7 +171,7 @@ class DataBase:
         except sqlite3.Error as e:
             print(f"Ошибка при форматировании данных о локациях или преподавателях: {e}")
     
-    def _formatLocationOrTeacher(self, data:tuple) -> list[dict[str:any]]:
+    def _formatLocationOrTeacher(self, data:tuple) -> list[LocationDict]:
         """
         Форматирует данные о локации или преподавателе.
 
@@ -197,7 +197,7 @@ class DataBase:
             print(f"Ошибка при получении идентификаторов регулярных занятий: {e}")
         return groupsIds
     
-    def _formatGroupsOccupancyData(self, groups:list) -> list[dict[str:any]]:
+    def _formatGroupsOccupancyData(self, groups:list[RegularLessonDict]) -> list[GroupOccupancyDict]:
         """
         Форматирует данные о заполненности групп.
 
@@ -260,7 +260,7 @@ class DataBase:
        
 
        
-    def _fromatRegularLessons(self, lessons:list[tuple]) -> list[dict]:
+    def _fromatRegularLessons(self, lessons:list[tuple]) -> list[RegularLessonDict]:
         """
         Форматирует данные о регулярных занятиях.
 
@@ -274,29 +274,8 @@ class DataBase:
 
     
     
-    def _selectData(self, tableName:str, field:str = None, param = None) -> list[tuple]:
-        """
-        Выполняет SELECT запрос к базе данных.
 
-        :param tableName: Название таблицы.
-        :param field: Поле для условия WHERE.
-        :param param: Значение для условия WHERE.
-        :return: Список кортежей с результатами запроса.
-        """
-        try:
-            sql = f"SELECT * FROM {tableName}"
-            params = ()
-            if param:
-                sql += f" WHERE {field} = ?"
-                params = (param,)
-            with db_ops(self.path) as cursor:
-                cursor.execute(sql, params)
-                groups = cursor.fetchall()
-            return groups
-        except sqlite3.Error as e:
-            print(f"Ошибка при выполнении SELECT запроса: {e}")
-    
-    def _fromatRegularLessons(self, lessons:list[tuple]) -> list[dict]:
+    def _fromatRegularLessons(self, lessons:list[tuple]) -> list[RegularLessonDict]:
         """
         Форматирует данные о регулярном занятии.
 
@@ -308,7 +287,7 @@ class DataBase:
            regularLessonsList.append(self._formatRegularLesson(i))
         return regularLessonsList
 
-    def _formatStudentsAbsences(self, students:list[tuple]) -> list[dict[str:any]]:
+    def _formatStudentsAbsences(self, students:list[tuple]) -> list[StudentAbsenceDict]:
         """
         Форматирует данные об отсутствии студентов.
 
@@ -320,7 +299,7 @@ class DataBase:
             studentsList.append(self._formatStudentAbsence(i))
         return studentsList
     
-    def _formatRegularLesson(self, lesson:tuple) -> dict[str:any]:
+    def _formatRegularLesson(self, lesson:tuple) -> dict[RegularLessonDict]:
         """
         Форматирует данные о регулярном занятии.
 
@@ -342,7 +321,7 @@ class DataBase:
             'subjectId' : lesson[11],
         }
     
-    def _formatStudentAbsence(self, student:tuple) -> dict[str:any]:
+    def _formatStudentAbsence(self, student:tuple) -> dict[StudentAbsenceDict]:
         """
         Форматирует данные об отсутствии студента.
 
@@ -364,7 +343,8 @@ class DataBase:
             'groupForWorkingOut': student[11]
 
         }
-    def _formatGroupOccupancyData(self, group:tuple) -> dict:
+    
+    def _formatGroupOccupancyData(self, group:tuple) -> GroupOccupancyDict:
         """
     Форматирует данные о заполненности групп.
 
@@ -381,7 +361,7 @@ class DataBase:
             'worksOffsTopics': group[6]
         }
     
-    def getGroupOccupancyData(self, idGroup:int) -> dict[str:any]:
+    def getGroupOccupancyData(self, idGroup:int) -> dict[GroupOccupancyDict]:
         """
         Возвращает данные о заполненности группы по идентификатору.
 
@@ -418,7 +398,7 @@ class DataBase:
         return string
    
 
-    def getStudentAbsences(self) -> list[dict[str:any]]:
+    def getStudentsAbsences(self) -> list[StudentAbsenceDict]:
         """
         Возвращает список отсутствий студентов с подробной информацией.
         Метод извлекает данные об отсутствиях студентов, форматирует их и добавляет
@@ -447,7 +427,7 @@ class DataBase:
                 students.append({'text':string, 'idGroup': int(i['idGroup']), 'location':regularLesson['location'],  "phoneNumber":i['phoneNumber']})
         return students
     
-    def deleteData(self, tableName:str, field:str, param) -> None:
+    def deleteData(self, tableName:str, field:str, value:any) -> None:
         """
         Удаляет данные из указанной таблицы.
 
@@ -457,11 +437,11 @@ class DataBase:
         """
         try:
             with db_ops(self.path) as cursor:
-                cursor.execute(f"DELETE FROM {tableName} WHERE {field} = ?", [param])
+                cursor.execute(f"DELETE FROM {tableName} WHERE {field} = ?", [value])
         except sqlite3.Error as e:
             print(f"Ошибка при удалении данных из таблицы {tableName}: {e}")
     
-    def _selectOneData(self, tableName:str, field:str, param) -> tuple:
+    def _selectOneData(self, tableName:str, field:str, param:any) -> tuple:
         """
         Выполняет SELECT запрос к базе данных и возвращает одну запись.
 
@@ -477,7 +457,7 @@ class DataBase:
         except sqlite3.Error as e:
             print(f"Ошибка при выполнении SELECT запроса: {e}")
 
-    def getRegularLessons(self, idGroup:int) -> dict:
+    def getRegularLessons(self, idGroup:int) -> RegularLessonDict:
         """
         Возвращает данные о группе по идентификатору.
 
@@ -494,7 +474,7 @@ class DataBase:
 
 
 
-    def getStudent(self, phoneNumber:str) -> dict:
+    def getStudent(self, phoneNumber:str) -> StudentAbsenceDict:
         """
         Возвращает данные о студенте по идентификатору.
 
@@ -508,7 +488,7 @@ class DataBase:
             print(f"Ошибка при получении данных о студенте: {e}")
 
     
-    def getAllLocations(self):
+    def getAllLocations(self) -> list[LocationDict]:
         """
         Возвращает список локаций.
 
@@ -519,150 +499,3 @@ class DataBase:
             return self._formatLocationsOrTeachers(locations)
         except sqlite3.Error as e:
             print(f"Ошибка при получении данных о локациях: {e}")
-class ContextDataBase:
-    def __init__(self, path:str):
-        """
-        Инициализирует объект базы данных контекста.
-
-        :param path: Путь к файлу базы данных.
-        """
-        self.path = path
-        self._createTables()
-    
-    def _createTables(self):
-        """
-        Создает таблицу Context, если она не существует.
-        """
-        try:
-            with db_ops(self.path) as cursor:
-                cursor.execute(
-                    '''
-                    CREATE TABLE IF NOT EXISTS Context(
-                    chat TEXT PRIMARY KEY,
-                    context TEXT NOT NULL
-                    )
-                    '''
-                    )
-        except sqlite3.Error as e:
-            print(f"Ошибка при создании таблиц: {e}")
-    
-
-    def updateContext(self, chat:str, context:str) -> None:
-        """
-        Обновляет контекст для указанного чата.
-
-        :param chat: Идентификатор чата.
-        :param context: Новый контекст.
-        """
-        try:
-            with db_ops(self.path) as cursor:
-                cursor.execute("UPDATE Context SET context = ? WHERE chat = ?", [context, chat])
-        except sqlite3.Error as e:
-            print(f"Ошибка при обновлении контекста: {e}")
-    
-    def getContext(self, chat:str) -> str:
-        """
-        Возвращает контекст для указанного чата.
-
-        :param chat: Идентификатор чата.
-        :return: Контекст чата.
-        """
-        try:
-            with db_ops(self.path) as cursor:
-                cursor.execute("SELECT context FROM Context WHERE chat = ?", [chat])
-                context = cursor.fetchone()
-                if context:
-                    return list(context[0])
-                else:
-                    return None
-        except sqlite3.Error as e:
-            print(f"Ошибка при получении контекста: {e}")
-
-    def findContext(self, chat:str) -> bool:
-        """
-        Проверяет, существует ли контекст для указанного чата.
-
-        :param chat: Идентификатор чата.
-        :return: True, если контекст существует, иначе False.
-        """
-        try:
-            with db_ops(self.path) as cursor:
-                cursor.execute("SELECT * FROM Context WHERE chat = ?", [chat])
-                context = cursor.fetchone()
-                if context:
-                    return True
-                else:
-                    return False
-        except sqlite3.Error as e:
-            print(f"Ошибка при поиске контекста: {e}")
-
-    def insertContext(self, chat:str, context:str) -> None:
-        """
-        Вставляет новый контекст для указанного чата.
-
-        :param chat: Идентификатор чата.
-        :param context: Контекст чата.
-        """
-        try:
-            with db_ops(self.path) as cursor:
-                cursor.execute("INSERT INTO Context (chat, context) VALUES (?,?)", [chat, context])
-        except sqlite3.Error as e:
-            print(f"Ошибка при добавлении контекста: {e}")
-
-    def __enter__(self):
-        """
-        Возвращает объект базы данных при входе в контекстный менеджер.
-        """
-        return DataBase(self.path)
-    
-
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        """
-        Выполняет действия при выходе из контекстного менеджера.
-        """
-        pass
-@contextmanager
-def db_ops(db_name):
-    conn = sqlite3.connect(db_name)
-    try:
-        cur = conn.cursor()
-        yield cur
-    except Exception as e:
-        # do something with exception
-        conn.rollback()
-        raise e
-    else:
-        conn.commit()
-    finally:
-        conn.close()
-
-
-def getDateNextWeekday(numberDay:int):
-   
-    d = datetime.timedelta( (7 + numberDay - datetime.date.today().weekday())%7 ).days
-    return  datetime.date.today() + datetime.timedelta(d)
-
-def getNameDay(day:int) ->str:
-    match(day):
-        case 0:
-            return 'Понедельник'
-        case 1:
-            return 'Вторник'
-        case 2:
-            return 'Среда'
-        case 3:
-            return 'Четверг'
-        case 4:
-            return 'Пятница'
-        case 5:
-            return 'Суббота'
-        case 6:
-            return 'Воскресенье'
-def assignWorkOffsToText(assignWorkOffs:int) -> str:
-    match assignWorkOffs:
-        case 0:
-            return "Не желательно"
-        case 1: 
-            return "Можно"
-        
