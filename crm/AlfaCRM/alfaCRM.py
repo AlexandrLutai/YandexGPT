@@ -6,6 +6,15 @@ from typing import Callable
 #Написать декорратор, проверяющий на валидность временный токен
 
 def handle_401(func: Callable) -> Callable:
+    """
+    Декоратор для обработки ошибки 401 и повторного выполнения запроса.
+
+    Args:
+        func (Callable): Функция для выполнения запроса.
+
+    Returns:
+        Callable: Обернутая функция.
+    """
     def wrapper(self, *args, **kwargs):
         try:
             response = func(self, *args, **kwargs)
@@ -28,6 +37,14 @@ def handle_401(func: Callable) -> Callable:
 
 class AlfaCRM: 
     def __init__(self, hostname:str, email:str, key:str):
+        """
+        Инициализирует объект AlfaCRM.
+
+        Args:
+            hostname (str): Хостнейм CRM.
+            email (str): Электронная почта для авторизации.
+            key (str): API ключ для авторизации.
+        """
         self._getModels = {
             "RegularLessons":"regular-lesson/index",
             "Students": "customer/index",
@@ -69,10 +86,10 @@ class AlfaCRM:
     @handle_401
     def _getBrunches(self) -> requests.Response:    
         """
-        Получает идентификатор филиала.
+        Получает ответ с данными филиалов.
 
         Returns:
-            int: Идентификатор филиала.
+            requests.Response: Ответ от сервера.
         """
         path = f"https://{self._hostname}/v2api/branch/index"
         return requests.post(path,data=json.dumps({"is_active" : 1}), headers = self._header)
@@ -106,7 +123,7 @@ class AlfaCRM:
             data (dict[str:any]): Данные для создания модели.
 
         Returns:
-            str: Ответ от сервера.
+            requests.Response: Ответ от сервера.
         """
         self._header.update({'Content-Type': 'application/json', 'Accept': 'application/json'})
         path = f"https://{self._hostname}/v2api/{self._brunchId}/{self._createModels[model]}"
@@ -125,7 +142,7 @@ class AlfaCRM:
             data (dict[str:any]): Данные для запроса. Передавать можно любые поля, доступные по выбранной ветке.
 
         Returns:
-            list: Список данных.
+            requests.Response: Ответ от сервера.
         """
         path = f"https://{self._hostname}/v2api/{self._brunchId}/{self._getModels[model]}"
         return requests.post(path,data=json.dumps(data),headers = self._header)
@@ -142,15 +159,15 @@ class AlfaCRM:
             list: Список данных.
         """
         return json.loads(response.text)["items"]
-            
-    
-   
-        
 
 
 
-   
-           
+
+
+
+
+
+
 
 
 
