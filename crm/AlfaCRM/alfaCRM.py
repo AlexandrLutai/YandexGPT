@@ -73,8 +73,13 @@ class AlfaCRM:
             str: Временный токен.
         """
         path = f"https://{self._hostname}/v2api/auth/login"
-        r = requests.post(path,json.dumps({'email':self._email, 'api_key':self._key}))
-        return json.loads(r.text)["token"]
+        try:
+            r = requests.post(path, json.dumps({'email':self._email, 'api_key':self._key}))
+            r.raise_for_status()
+            return json.loads(r.text)["token"]
+        except requests.RequestException as e:
+            print(f"Ошибка при получении временного токена: {e}")
+            return ""
 
     
     def _fillHeader(self) -> None:
@@ -92,11 +97,11 @@ class AlfaCRM:
             requests.Response: Ответ от сервера.
         """
         path = f"https://{self._hostname}/v2api/branch/index"
-        return requests.post(path,data=json.dumps({"is_active" : 1}), headers = self._header)
+        return requests.post(path, data=json.dumps({"is_active" : 1}), headers=self._header)
         
             
     
-    def _getIdBrunches(self, brunches:list[int]) ->int:       
+    def _getIdBrunches(self, brunches:list[int]) -> int:       
         """
         Получает идентификатор филиала из списка филиалов.
 
@@ -127,13 +132,13 @@ class AlfaCRM:
         """
         self._header.update({'Content-Type': 'application/json', 'Accept': 'application/json'})
         path = f"https://{self._hostname}/v2api/{self._brunchId}/{self._createModels[model]}"
-        return requests.post(path,json.dumps(data),headers = self._header)
+        return requests.post(path, json.dumps(data), headers=self._header)
         
             
     
         
     @handle_401
-    def getData(self,model:str, data: dict[str:any]) -> requests.Response:
+    def getData(self, model:str, data: dict[str:any]) -> requests.Response:
         """
         Получает данные из CRM.
 
@@ -145,7 +150,7 @@ class AlfaCRM:
             requests.Response: Ответ от сервера.
         """
         path = f"https://{self._hostname}/v2api/{self._brunchId}/{self._getModels[model]}"
-        return requests.post(path,data=json.dumps(data),headers = self._header)
+        return requests.post(path, data=json.dumps(data), headers=self._header)
         
 
     def getItems(self, response: requests.Response) -> list:
@@ -158,7 +163,12 @@ class AlfaCRM:
         Returns:
             list: Список данных.
         """
-        return json.loads(response.text)["items"]
+        try:
+            response.raise_for_status()
+            return json.loads(response.text)["items"]
+        except requests.RequestException as e:
+            print(f"Ошибка при получении данных: {e}")
+            return []
 
 
 
