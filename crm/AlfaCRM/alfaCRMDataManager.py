@@ -232,7 +232,7 @@ class AlfaCRMDataManager(CrmDataManagerInterface):
                                 'idGroup': group['group_ids'][0],
                                 'idLesson': group['id'],
                                 'teacher': group['teacher_ids'][0],
-                                'phoneNumber': studentData['phone'][0],
+                                'phoneNumber': studentData['phone'][0].replace('+()-', ''),
                                 'name': studentData['name']
                             }
                         )

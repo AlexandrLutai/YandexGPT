@@ -108,18 +108,10 @@ class DataBase:
         try:
             with db_ops(self.path) as cursor:
                 cursor.execute("DELETE FROM RegularLessons")
-            for group in groups:
-                lessonId = group['id']
-                lessonName = group['name']
-                studentIds = group['idsStudents']
-                eventDate = group['dateOfEvent']
-                studentCount = group['count']
-                lastUpdate = group['lastUpdate']
-
-                cursor.execute(
-                    "INSERT INTO RegularLessons (id, name, idsStudents, dateOfEvent, count, lastUpdate) VALUES (?, ?, ?, ?, ?, ?)",
-                    (lessonId, lessonName, studentIds, eventDate, studentCount, lastUpdate)
-                )
+            with db_ops(self.path) as cursor:
+                for group in groups:
+                    cursor.execute('INSERT INTO RegularLessons (idGroup,topic,idsStudents,location,teacher,day,timeFrom,timeTo,maxStudents,lastUpdate,subjectId) VALUES(?,?,?,?,?,?,?,?,?,?,?)', 
+                                (group['idGroup'], group['topic'],group['idsStudents'], group['location'],group['teacher'],group['day'],group['timeFrom'],group['timeTo'],group['maxStudents'],group['lastUpdate'], group['subjectId']))
         except sqlite3.Error as e:
             print(f"Ошибка при синхронизации таблицы RegularLessons: {e}")
     
