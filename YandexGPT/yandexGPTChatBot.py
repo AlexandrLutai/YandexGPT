@@ -1,6 +1,6 @@
 
 import json
-from dataBase.mainDataBase import DataBase
+from dataBase.database import DataBase
 from typing import TypedDict
 from crm.crmDataManagerInterface import CrmDataManagerInterface 
 from YandexGPT.yandexGPTModel import YandexGPTModel
@@ -50,7 +50,7 @@ class YandexGPTChatBot:
         self._currentMessages = {}
         self.messageAnalyzer = MessageAnalyzer(ChatScriptAnalyzer(gpt, "prompts/chatBotPrompst.json"), db, crm)
 
-    def _getContext(self, chatId:str) -> list[MessageForPromptDict]:
+    def _get_context(self, chatId:str) -> list[MessageForPromptDict]:
         """
         Получает контекст чата по идентификатору чата.
 
@@ -68,7 +68,7 @@ class YandexGPTChatBot:
                 self._currentContext.update({chatId :[]})
         return self._currentContext[chatId]
 
-    def _delFromCurrentContext(self, chatId:str):
+    def _del_from_current_context(self, chatId:str):
         """
         Удаляет контекст чата из текущего контекста.
 
@@ -77,7 +77,7 @@ class YandexGPTChatBot:
         """
         del self._currentContext[chatId]
 
-    def _addToContext(self, chat:str, role:str, message:str):
+    def _add_to_context(self, chat:str, role:str, message:str):
         """
         Добавляет сообщение в контекст чата.
 
@@ -91,7 +91,7 @@ class YandexGPTChatBot:
             "text": message
         })
 
-    def _getMessage(self, scriptKey:str, chat:str, message:dict = None) -> list[MessageForPromptDict]:
+    def _get_message(self, scriptKey:str, chat:str, message:dict = None) -> list[MessageForPromptDict]:
         """
         Получает сообщение для отправки в модель GPT.
 
@@ -118,14 +118,14 @@ class YandexGPTChatBot:
             "role": "system",
             "text": data['scenaries'][scriptKey]
             },
-            *self._getContext(chat),  # Распаковываем словари из списка
+            *self._get_context(chat),  # Распаковываем словари из списка
             {
             "role": message['role'],
             "text": message['text']
             },
         ]
     
-    def _getScenaries(self, message:str) -> str:
+    def _get_scenaries(self, message:str) -> str:
         """
         Получает сценарий для обработки сообщения.
 
@@ -143,7 +143,7 @@ class YandexGPTChatBot:
                 return None
         
         
-    def sendMessage(self, skriptKey:str, chat:str, message:str ) -> str:
+    def send_message(self, skriptKey:str, chat:str, message:str ) -> str:
         """
         Отправляет сообщение в модель GPT и получает ответ.
 
@@ -155,10 +155,10 @@ class YandexGPTChatBot:
         Returns:
             str: Ответ модели GPT.
         """
-        gptMessage = self._gpt.request(self._getMessage(skriptKey,chat,message))
-        gptMessageForUser = self.messageAnalyzer.analyzeGPTAnswer({"chatId":chat, "text":gptMessage})
-        self._addToContext(chat, message['role'], message['text'])
-        self._addToContext(chat, "assistant", gptMessage)
+        gptMessage = self._gpt.request(self._get_message(skriptKey,chat,message))
+        gptMessageForUser = self.messageAnalyzer.analyze_GPT_answer({"chatId":chat, "text":gptMessage})
+        self._add_to_context(chat, message['role'], message['text'])
+        self._add_to_context(chat, "assistant", gptMessage)
         
         
         return gptMessageForUser

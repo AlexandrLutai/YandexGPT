@@ -1,7 +1,10 @@
-from dataBase.mainDataBase import DataBase 
+from dataBase.database import DataBase 
 from crm.AlfaCRM.alfaCRMDataManager import AlfaCRMDataManager
 
 class AlfaCRMDBManager:
+    """
+    Добавляет данные из CRM в базу данных.
+    """
     def __init__(self, dataBase:DataBase, alfaCRMDataManager:AlfaCRMDataManager):
         """
         Инициализирует менеджер базы данных CRM.
@@ -13,42 +16,42 @@ class AlfaCRMDBManager:
         self.db = dataBase
         self.dataManager = alfaCRMDataManager
 
-    def synchroniseTeachers(self):
+    def synchronise_teachers(self):
         """
         Синхронизирует данные учителей с базой данных.
         """
         try:
-            self.db.synchroniseTeachers(self.dataManager.getTeachers())
+            self.db.synchronise_teachers(self.dataManager.get_teachers())
             print('synchroniseTeachers Ok')
         except Exception as e:
             print(f"Ошибка при синхронизации учителей: {e}")
 
-    def synchroniseRegularLessons(self):
+    def synchronise_regular_lessons(self):
         """
         Синхронизирует регулярные уроки с базой данных.
         """
         try:
-            locations = self.db.getAllLocations()
+            locations = self.db.get_all_locations()
             allLessons = []
             for location in locations:
                 print(f'synchroniseRegularLessons location {location}')
-                lessons = self.dataManager.getRegularLessonsByLocationId(location['id'])
+                lessons = self.dataManager.get_regular_lessons_by_location_id(location['id'])
                 allLessons += lessons
-            self.db.synchroniseTableRegularLessons(allLessons)
+            self.db.synchronise_table_regular_lessons(allLessons)
             print(f'synchroniseRegularLessons done')
         except Exception as e:
             print(f"Ошибка при синхронизации регулярных уроков: {e}")
 
-    def insertInStudentAbsences(self):
+    def insert_in_student_absences(self):
         """
         Вставляет данные о пропусках студентов в базу данных.
         """
         try:
-            idsGroups = self.db.getRegularLessonsIds()
+            idsGroups = self.db.get_regular_lessons_ids()
             for i in idsGroups:
                 print(" insertInStudentAbsences group id ", i)
-                students = self.dataManager.getStudentsMissedLesson(i)
-                self.db.fillTableStudentAbsences(students)
+                students = self.dataManager.get_students_missed_lesson(i)
+                self.db.fill_table_student_absences(students)
         except Exception as e:
             print(f"Ошибка при вставке данных о пропусках студентов: {e}")
 

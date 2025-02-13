@@ -15,7 +15,7 @@ class ChatScriptAnalyzer:
         self._gpt = gpt
         self._instractionsPath = instractionsPath
     
-    def _getScenaries(self, instructionsData:dict) -> str:
+    def _get_scenaries(self, instructionsData:dict) -> str:
         """
         Получает сценарии из данных инструкций.
 
@@ -30,7 +30,7 @@ class ChatScriptAnalyzer:
             scenaries += key + ": "+ instructionsData['scenaries'][key] + "\n"
         return scenaries
 
-    def _getPrompt(self, message:str) -> list:
+    def _get_prompt(self, message:str) -> list:
         """
         Получает запрос для модели GPT.
 
@@ -49,7 +49,7 @@ class ChatScriptAnalyzer:
             },
             {
             "role": "system",
-            "text": self._getScenaries(instructionData)
+            "text": self._get_scenaries(instructionData)
             },
             {
                 "role": "user",
@@ -67,5 +67,5 @@ class ChatScriptAnalyzer:
         Returns:
             str: Ответ модели GPT.
         """
-        return self._gpt.request(self._getPrompt(message))
+        return self._gpt.request(self._get_prompt(message))
       

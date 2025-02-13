@@ -4,7 +4,7 @@ from mTyping.dictTypes import CreateLessonModelDict, StudentAbsenceDict, Locatio
 
 class CrmDataManagerInterface(ABC):
     @abstractmethod
-    def getLocations(self) -> List[LocationDict]:
+    def get_locations(self) -> List[LocationDict]:
         """
         Получает список локаций.
 
@@ -14,7 +14,7 @@ class CrmDataManagerInterface(ABC):
         pass
 
     @abstractmethod
-    def getRegularLessonsByLocationId(self, locationId: int) -> List[RegularLessonDict]:
+    def get_regular_lessons_by_location_id(self, locationId: int) -> List[RegularLessonDict]:
         """
         Получает регулярные уроки по идентификатору локации.
 
@@ -27,7 +27,7 @@ class CrmDataManagerInterface(ABC):
         pass
     
     @abstractmethod
-    def getTeachers(self) -> List[Dict[str, str]]:
+    def get_teachers(self) -> List[Dict[str, str]]:
         """
         Получает список учителей.
 
@@ -37,7 +37,7 @@ class CrmDataManagerInterface(ABC):
         pass
 
     @abstractmethod
-    def getStudentsMissedLesson(self, groupId: int) -> List[StudentAbsenceDict]:
+    def get_students_missed_lesson(self, groupId: int) -> List[StudentAbsenceDict]:
         """
         Получает список студентов, пропустивших урок.
 
@@ -50,7 +50,7 @@ class CrmDataManagerInterface(ABC):
         pass
 
     @abstractmethod
-    def addWorkOff(self, data: CreateLessonModelDict) -> None:
+    def add_work_off(self, data: CreateLessonModelDict) -> None:
         """
         Добавляет отработку урока.
 

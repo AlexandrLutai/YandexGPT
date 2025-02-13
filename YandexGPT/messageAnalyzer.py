@@ -1,6 +1,6 @@
 from crm.crmDataManagerInterface import CrmDataManagerInterface
 from YandexGPT.chatScriptAnalyzer import ChatScriptAnalyzer
-from dataBase.mainDataBase import DataBase
+from dataBase.database import DataBase
 from functions.functions import getDuration, getDateNextWeekday
 from mTyping.dictTypes import MessageForAnalyzeDict
 
@@ -27,31 +27,31 @@ class MessageAnalyzer:
         self._crm = crm
     
 
-    def analyzeGPTAnswer(self, data:MessageForAnalyzeDict):
+    def analyze_GPT_answer(self, data:MessageForAnalyzeDict):
         message = data['text']
         if "|" in data['text']:
-           message = self._analyzeSystemMessage(data)
+           message = self._analyze_system_message(data)
         return message
 
-    def _analyzeSystemMessage(self, data:MessageForAnalyzeDict):
+    def _analyze_system_message(self, data:MessageForAnalyzeDict):
         message = data['text'].split('|')
         if "отработк" in message[0].lower():
-            self._processWorkOffMessage(data)
+            self._process_work_off_message(data)
             pass
         return message[-1]
         pass
 
-    def _processWorkOffMessage(self, data:MessageForAnalyzeDict):
+    def _process_work_off_message(self, data:MessageForAnalyzeDict):
         message = data['text'].split('|')
         if 'success' in message[1].lower() :
-            self._workOffSuccess(data)
+            self._work_off_success(data)
             pass
         elif message[1].lower() == 'fail':
-            self._workOffFail(data)
+            self._work_off_fail(data)
             pass
         pass
 
-    def _workOffSuccess(self, data:MessageForAnalyzeDict):
+    def _work_off_success(self, data:MessageForAnalyzeDict):
         """
         Обрабатывает успешное сообщение об отработке.
 
@@ -60,9 +60,9 @@ class MessageAnalyzer:
         """
         try:
             idGroup = int(data['text'].split('|')[2])
-            student = self._db.getStudent(data['chatId'])
-            regularLesson = self._db.getRegularLessons(idGroup)
-            groupOccupancy = self._db.getGroupOccupancyData(idGroup)
+            student = self._db.get_student(data['chatId'])
+            regularLesson = self._db.get_regular_lessons(idGroup)
+            groupOccupancy = self._db.get_group_occupancy_data(idGroup)
             dataForCRM = {
                 'topic': student['topic'],
                 'lesson_date': groupOccupancy['dateOfEvent'],
@@ -74,17 +74,22 @@ class MessageAnalyzer:
             }
 
             dataForDB = {
-                'worksOffsTopics': f"{groupOccupancy['worksOffsTopics']}, {student['topic']}",
-                'newStudents': f"{groupOccupancy['newStudents']}, {student['idStudent']}",
                 'count': groupOccupancy['count'] + 1
             }
-            self._crm.addWorkOff(dataForCRM)
+            studentDataString = str({"idStudent":student['idStudent'], "topic":student['topic'], "idLesson":student['idLesson']})
+            if groupOccupancy['newStudents'] == '' or groupOccupancy['newStudents'] is None:
+                dataForDB['newStudents'] = studentDataString
+            else:
+                dataForDB['newStudents'] = f"{groupOccupancy['newStudents']}, {studentDataString}"
+
+            self._crm.add_work_off(dataForCRM)
             self._db.updateData(dataForDB, "groupOccupancy", {'idGroup': idGroup})
+            self._db.updateData({'dateLastConnection': datetime.date.today().strftime('%y-%m-%d'), 'groupForWorkingOut': idGroup},"StudentAbsences", {'phoneNumber': data['chatId']})
         except Exception as e:
             print(f"An error occurred while processing work off success: {e}")
         
 
-    def _workOffFail(self, data:MessageForAnalyzeDict):
+    def _work_off_fail(self, data:MessageForAnalyzeDict):
         dateNextConnextion = int(data['text'].split('|')[2])
         dataForDB = {
             'dateLastConnection' : datetime.datetime.now().strftime('%Y-%m-%d'),

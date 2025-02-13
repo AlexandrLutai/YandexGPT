@@ -25,7 +25,7 @@ class YandexGPTModel:
         self._modelUrl = f"gpt://{cloudBranch}/yandexgpt-lite"      
 
     
-    def _fillGPTPrompt(self, messages:list[MessageForPromptDict]):
+    def _fill_GPT_prompt(self, messages:list[MessageForPromptDict]):
         """
         Заполняет запрос для модели GPT.
 
@@ -51,7 +51,7 @@ class YandexGPTModel:
         Returns:
             str: Ответ модели.
         """
-        prompt = self._fillGPTPrompt(messages)
+        prompt = self._fill_GPT_prompt(messages)
 
         r = requests.post(url=self._url, json=prompt, headers=self._headers)
         print(r.text)

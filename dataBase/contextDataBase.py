@@ -1,6 +1,7 @@
 import sqlite3
 from functions.functions import db_ops
 
+#Доработать
 
 class ContextDataBase:
     def __init__(self, path:str):
