@@ -1,7 +1,7 @@
 from crm.crmDataManagerInterface import CrmDataManagerInterface
 from YandexGPT.chatScriptAnalyzer import ChatScriptAnalyzer
 from dataBase.database import DataBase
-from functions.functions import getDuration, getDateNextWeekday
+from functions.functions import get_duration, get_date_next_weekday
 from mTyping.dictTypes import MessageForAnalyzeDict
 
 
@@ -68,7 +68,7 @@ class MessageAnalyzer:
                 'lesson_date': groupOccupancy['dateOfEvent'],
                 'customer_ids':list([student['idStudent']]),
                 'time_from': regularLesson['timeFrom'],
-                'duration': getDuration(regularLesson['timeFrom'], regularLesson['timeTo']),
+                'duration': get_duration(regularLesson['timeFrom'], regularLesson['timeTo']),
                 'subject_id': regularLesson['subjectId'],
                 'teacher_ids': list([regularLesson['teacher']])
             }
@@ -93,7 +93,7 @@ class MessageAnalyzer:
         dateNextConnextion = int(data['text'].split('|')[2])
         dataForDB = {
             'dateLastConnection' : datetime.datetime.now().strftime('%Y-%m-%d'),
-            'dateNextConnection': getDateNextWeekday(datetime.datetime.now().weekday()).strftime('%Y-%m-%d')
+            'dateNextConnection': get_date_next_weekday(datetime.datetime.now().weekday()).strftime('%Y-%m-%d')
         }
         self._db.updateData(dataForDB, "StudentAbsences", {'phoneNumber': data['idChat']})
 

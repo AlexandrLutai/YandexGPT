@@ -1,5 +1,5 @@
 import sqlite3
-from functions.functions import db_ops, getDateNextWeekday, getNameDay, assignWorkOffsToText
+from functions.functions import db_ops, get_date_next_weekday, get_day_name, assign_work_offs_to_text
 import datetime
 from mTyping.dictTypes import RegularLessonDict, StudentAbsenceDict, LocationDict, GroupOccupancyDict
 from dataBase.databaseManager import DatabaseManager
@@ -137,7 +137,7 @@ class DataBase:
                         location = self._DBDataFormatter.format_location_or_teacher(self._DBManager.select_one_data('Locations', {'id': regularLesson['location']}))
                         teacher = self._DBDataFormatter.format_location_or_teacher(self._DBManager.select_one_data('Teachers', {'id': regularLesson['teacher']}))
                         string += f"""
-                        id Группы: {regularLesson['idGroup']}, Основная тема: {regularLesson['topic']}, Темы отработок: {i['worksOffsTopics']}, Локация: {location['name']}, Преподаватель: {teacher['name']}, День недели: {getNameDay(regularLesson['day'])}, Время начала: {regularLesson['timeFrom']}, Время окончания: {regularLesson['timeTo']}, Назначать отработки: {assignWorkOffsToText(regularLesson['assignWorkOffs'])}
+                        id Группы: {regularLesson['idGroup']}, Основная тема: {regularLesson['topic']}, Темы отработок: {i['worksOffsTopics']}, Локация: {location['name']}, Преподаватель: {teacher['name']}, День недели: {get_day_name(regularLesson['day'])}, Время начала: {regularLesson['timeFrom']}, Время окончания: {regularLesson['timeTo']}, Назначать отработки: {assign_work_offs_to_text(regularLesson['assignWorkOffs'])}
                         """
             return string
         except sqlite3.Error as e:
@@ -161,7 +161,7 @@ class DataBase:
                 Имя ребёнка: {i['name']}
                 Тема: {i['topic']}
                 Преподаватель: {teacher['name']}
-                День основного занятия: {getNameDay(regularLesson['day'])}
+                День основного занятия: {get_day_name(regularLesson['day'])}
                 Время начала основного занятия: {regularLesson['timeFrom']}
                 """
                 students.append({'text': string, 'idGroup': int(i['idGroup']), 'location': regularLesson['location'], "phoneNumber": i['phoneNumber']})

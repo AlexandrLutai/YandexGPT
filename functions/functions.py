@@ -18,12 +18,12 @@ def db_ops(db_name):
         conn.close()
 
 
-def getDateNextWeekday(numberDay:int):
+def get_date_next_weekday(numberDay:int):
    
     d = datetime.timedelta( (7 + numberDay - datetime.date.today().weekday())%7 ).days
     return  datetime.date.today() + datetime.timedelta(d)
 
-def getNameDay(day:int) ->str:
+def get_day_name(day:int) ->str:
     match(day):
         case 0:
             return 'Понедельник'
@@ -39,7 +39,7 @@ def getNameDay(day:int) ->str:
             return 'Суббота'
         case 6:
             return 'Воскресенье'
-def assignWorkOffsToText(assignWorkOffs:int) -> str:
+def assign_work_offs_to_text(assignWorkOffs:int) -> str:
     match assignWorkOffs:
         case 0:
             return "Не желательно"
@@ -47,7 +47,7 @@ def assignWorkOffsToText(assignWorkOffs:int) -> str:
             return "Можно"
 
 
-def getDuration(timeFrom:str, timeTo:str) -> int:
+def get_duration(timeFrom:str, timeTo:str) -> int:
     """
     Получает длительность урока.
 

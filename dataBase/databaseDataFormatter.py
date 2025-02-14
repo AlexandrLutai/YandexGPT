@@ -1,7 +1,7 @@
 from mTyping.dictTypes import RegularLessonDict, StudentAbsenceDict, LocationDict, GroupOccupancyDict
 import sqlite3
 import datetime
-from functions.functions import getDateNextWeekday
+from functions.functions import get_date_next_weekday
 
 class DatabaseDataFormatter:
     """
@@ -21,7 +21,7 @@ class DatabaseDataFormatter:
         return {
             'idGroup': group[0],
             'idsStudents': group[2],
-            'dateOfEvent': getDateNextWeekday(group[5]).strftime('%d.%m.%Y'),
+            'dateOfEvent': get_date_next_weekday(group[5]).strftime('%d.%m.%Y'),
             'count': len(group[2].split(',')),
             'lastUpdate': datetime.date.today()
         }
