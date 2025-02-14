@@ -1,43 +1,29 @@
-
 # Диаграмма взаимодействия классов
 
-![Взаимодействие классов](https://cdn.imgpile.com/f/sfgcrxT_xl.png)
+![Взаимодействие классов](https://imgur.com/a/l5YVZJx)
 
-# CRM module
+## alfaCRM.py
 
-## CrmDataManagerInterface
+### Описание
 
-`CrmDataManagerInterface` - это абстрактный класс, который определяет интерфейс для управления данными CRM. Он содержит следующие методы:
+Этот файл содержит классы для работы с CRM-системой AlfaCRM. Основные классы:
 
-### Методы
+- `AlfaCRM`: Класс для взаимодействия с API AlfaCRM.
+- `AlfaCRMDataManager`: Класс для управления данными, полученными из AlfaCRM.
+- `AlfaCRMDBManager`: Класс для синхронизации данных с локальной базой данных.
 
-- `get_locations() -> List[LocationDict]`
-  - Получает список локаций.
-  - Возвращает: `List[LocationDict]` - Список локаций.
+### Классы и методы
 
-- `get_regular_lessons_by_location_id(locationId: int) -> List[RegularLessonDict]`
-  - Получает регулярные уроки по идентификатору локации.
-  - Аргументы:
-    - `locationId (int)` - Идентификатор локации.
-  - Возвращает: `List[RegularLessonDict]` - Список регулярных уроков.
+#### AlfaCRM
 
-- `get_teachers() -> List[Dict[str, str]]`
-  - Получает список учителей.
-  - Возвращает: `List[Dict[str, str]]` - Список учителей.
+- `__init__(self, hostname: str, email: str, key: str)`: Инициализация класса с указанием хоста, email и ключа API.
+- `_getTempToken(self) -> str`: Получение временного токена для доступа к API.
+- `_fillHeader(self) -> None`: Заполнение заголовка запроса с временным токеном.
+- `_getBrunches(self) -> int`: Получение идентификатора филиала.
+- `_getIdBrunches(self, brunches: list) -> int`: Получение идентификатора филиала из списка филиалов.
+- `getData(self, model: str, data: dict) -> list`: Получение данных из указанной модели.
 
-- `get_students_missed_lesson(groupId: int) -> List[StudentAbsenceDict]`
-  - Получает список студентов, пропустивших урок.
-  - Аргументы:
-    - `groupId (int)` - Идентификатор группы.
-  - Возвращает: `List[StudentAbsenceDict]` - Список студентов, пропустивших урок.
-
-- `add_work_off(data: CreateLessonModelDict) -> None`
-  - Добавляет отработку урока.
-  - Аргументы:
-    - `data (CreateLessonModelDict)` - Данные урока.
-
-
-## AlfaCRMDataManager
+#### AlfaCRMDataManager
 
 `AlfaCRMDataManager` - это класс, который реализует интерфейс `CrmDataManagerInterface` и отвечает за форматирование данных при добавлении и получении информации из CRM.
 
@@ -610,4 +596,77 @@
 
  - Метод getRegularLessonsByLocationId класса AlfaCRMDataManager. Если урок не проведён, выдаёт ошибку. Нужно выдавать сообщение пользователю о том, что нужно провести урок. 
 
- - Прерывается подключение к AlfaCRM, происходит 1 раз из 10, подумать над решением.
+ -Прерывается подключение к AlfaCRM, происходит 1 раз из 10, подумать над решением.
+
+## dictTypes
+
+`dictTypes` - это модуль, содержащий типы словарей, используемые в проекте.
+
+### Типы словарей
+
+- `CreateLessonModelDict`
+  - Тип словаря для создания модели урока.
+  - Поля:
+    - `topic (str)` - Тема урока.
+    - `lesson_date (str)` - Дата урока.
+    - `customer_ids (list[int])` - Список идентификаторов клиентов.
+    - `time_from (str)` - Время начала урока.
+    - `duration (int)` - Продолжительность урока.
+    - `subject_id (int)` - Идентификатор предмета.
+    - `teacher_ids (list[int])` - Список идентификаторов учителей.
+
+- `StudentAbsenceDict`
+  - Тип словаря для данных об отсутствии студента.
+  - Поля:
+    - `idStudent (int)` - Идентификатор студента.
+    - `date (str)` - Дата отсутствия.
+    - `topic (str)` - Тема урока.
+    - `idGroup (int)` - Идентификатор группы.
+    - `idLesson (int)` - Идентификатор урока.
+    - `teacher (int)` - Идентификатор учителя.
+    - `phoneNumber (str)` - Номер телефона студента.
+    - `name (str)` - Имя студента.
+
+- `LocationDict`
+  - Тип словаря для данных о локации.
+  - Поля:
+    - `id (int)` - Идентификатор локации.
+    - `name (str)` - Название локации.
+
+- `RegularLessonDict`
+  - Тип словаря для данных о регулярных занятиях.
+  - Поля:
+    - `idGroup (int)` - Идентификатор группы.
+    - `topic (str)` - Тема занятия.
+    - `idsStudents (str)` - Идентификаторы студентов.
+    - `location (int)` - Идентификатор локации.
+    - `teacher (int)` - Идентификатор учителя.
+    - `day (int)` - День недели.
+    - `timeFrom (str)` - Время начала занятия.
+    - `timeTo (str)` - Время окончания занятия.
+    - `maxStudents (int)` - Максимальное количество студентов.
+    - `lastUpdate (str)` - Дата последнего обновления.
+    - `subjectId (int)` - Идентификатор предмета.
+
+- `GroupOccupancyDict`
+  - Тип словаря для данных о заполненности группы.
+  - Поля:
+    - `idGroup (int)` - Идентификатор группы.
+    - `newStudents (int)` - Количество новых студентов.
+    - `idsStudents (str)` - Идентификаторы студентов.
+    - `dateOfEvent (str)` - Дата события.
+    - `count (int)` - Количество студентов.
+    - `lastUpdate (str)` - Дата последнего обновления.
+    - `worksOffsTopics (str)` - Темы отработок.
+
+- `MessageForPromptDict`
+  - Тип словаря для сообщений, отправляемых в модель GPT.
+  - Поля:
+    - `role (str)` - Роль отправителя сообщения.
+    - `text (str)` - Текст сообщения.
+
+- `MessageForAnalyzeDict`
+  - Тип словаря для сообщений, анализируемых моделью GPT.
+  - Поля:
+    - `chatId (str)` - Идентификатор чата.
+    - `text (str)` - Текст сообщения.
