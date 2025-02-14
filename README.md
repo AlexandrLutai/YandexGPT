@@ -1,6 +1,6 @@
 # Диаграмма взаимодействия классов
 
-![Взаимодействие классов](https://cdn.imgpile.com/f/sfgcrxT_xl.png)
+![Взаимодействие классов](https://cdn.imgpile.com/f/GigEteQ_xl.png)
 
 ### Классы и методы
 
