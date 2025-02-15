@@ -27,4 +27,5 @@ instuctions/*
 *.json
 *.txt
 
+*.docx
 *.db
