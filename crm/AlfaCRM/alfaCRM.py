@@ -1,4 +1,4 @@
-import requests
+import aiohttp
 import json
 from typing import Callable
 
@@ -16,19 +16,19 @@ class AlfaCRM:
         """
         Декоратор для обработки ошибки 401 и повторного выполнения запроса.
         """
-        def wrapper(self, *args, **kwargs):
+        async def wrapper(self, *args, **kwargs):
             try:
-                response = func(self, *args, **kwargs)
+                response = await func(self, *args, **kwargs)
                 response.raise_for_status()
                 return response
-            except requests.RequestException as e:
-                if 'response' in locals() and response.status_code == 401:
-                    self._fill_header()
+            except aiohttp.ClientResponseError as e:
+                if 'response' in locals() and e.status == 401:
+                    await self._fill_header()
                     try:
-                        response = func(self, *args, **kwargs)
+                        response = await func(self, *args, **kwargs)
                         response.raise_for_status()
                         return response
-                    except requests.RequestException as e:
+                    except aiohttp.ClientResponseError as e:
                         print(f"Ошибка при повторном выполнении запроса: {e}")
                         return None
                 else:
@@ -61,10 +61,11 @@ class AlfaCRM:
         self._email = email
         self._key = key
         self._hostname = hostname
+        
         self._fill_header()
         self._brunchId = self._get_id_brunches(self.get_items(self._get_brunches()))
 
-    def _get_temp_token(self) -> str:
+    async def _get_temp_token(self) -> str:
         """
         Получает временный токен для авторизации.
 
@@ -72,32 +73,36 @@ class AlfaCRM:
             str: Временный токен.
         """
         path = f"https://{self._hostname}/v2api/auth/login"
-        try:
-            r = requests.post(path, json.dumps({'email': self._email, 'api_key': self._key}))
-            r.raise_for_status()
-            return json.loads(r.text)["token"]
-        except requests.RequestException as e:
-            print(f"Ошибка при получении временного токена: {e}")
-            return ""
+        async with aiohttp.ClientSession() as session:
+            try:
+                async with session.post(path, json={'email': self._email, 'api_key': self._key}) as response:
+                    response.raise_for_status()
+                    data = await response.json()
+                    return data["token"]
+            except aiohttp.ClientResponseError as e:
+                print(f"Ошибка при получении временного токена: {e}")
+                return ""
 
-    def _fill_header(self) -> None:
+    async def _fill_header(self) -> None:
         """
         Заполняет заголовок запроса временным токеном.
         """
-        self._header = {'X-ALFACRM-TOKEN': self._get_temp_token(),'Content-Type': 'application/json', 'Accept': 'application/json'}
+        token = await self._get_temp_token()
+        self._header = {'X-ALFACRM-TOKEN': token, 'Content-Type': 'application/json', 'Accept': 'application/json'}
 
     @_handle_401
-    def _get_brunches(self) -> requests.Response:
+    async def _get_brunches(self) -> aiohttp.ClientResponse:
         """
         Получает данные филиалов.
 
         Returns:
-            requests.Response: Ответ от сервера.
+            aiohttp.ClientResponse: Ответ от сервера.
         """
         path = f"https://{self._hostname}/v2api/branch/index"
-        return requests.post(path, data=json.dumps({"is_active": 1}), headers=self._header)
+        async with aiohttp.ClientSession() as session:
+            return await session.post(path, json={"is_active": 1}, headers=self._header)
 
-    def _get_id_brunches(self, brunches: list[int]) -> int:
+    async def _get_id_brunches(self, brunches: list[int]) -> int:
         """
         !!!!Доработать!!!!
             Предоставить выбор филиала пользователю.
@@ -117,7 +122,7 @@ class AlfaCRM:
                 return brunches[1]["id"]
 
     @_handle_401
-    def create_model(self, model: str, data: dict[str, any]) -> requests.Response:
+    async def create_model(self, model: str, data: dict[str, any]) -> aiohttp.ClientResponse:
         """
         Создает модель в CRM.
 
@@ -126,13 +131,14 @@ class AlfaCRM:
             data (dict[str, any]): Данные для создания модели.
 
         Returns:
-            requests.Response: Ответ от сервера.
+            aiohttp.ClientResponse: Ответ от сервера.
         """
         path = f"https://{self._hostname}/v2api/{self._brunchId}/{AlfaCRM.MODELS_FOR_CREATING[model]}"
-        return requests.post(path, json.dumps(data), headers=self._header)
+        async with aiohttp.ClientSession() as session:
+            return await session.post(path, json=data, headers=self._header)
 
     @_handle_401
-    def get_data(self, model: str, data: dict[str, any]) -> requests.Response:
+    async def get_data(self, model: str, data: dict[str, any]) -> aiohttp.ClientResponse:
         """
         Получает данные из CRM.
 
@@ -141,25 +147,27 @@ class AlfaCRM:
             data (dict[str, any]): Данные для запроса.
 
         Returns:
-            requests.Response: Ответ от сервера.
+            aiohttp.ClientResponse: Ответ от сервера.
         """
         path = f"https://{self._hostname}/v2api/{self._brunchId}/{AlfaCRM.MODELS_FOR_GETTING_DATA[model]}"
-        return requests.post(path, data=json.dumps(data), headers=self._header)
+        async with aiohttp.ClientSession() as session:
+            return await session.post(path, json=data, headers=self._header)
 
-    def get_items(self, response: requests.Response) -> dict[str, any]:
+    async def get_items(self, response: aiohttp.ClientResponse) -> dict[str, any]:
         """
         Получает список данных из ответа.
 
         Args:
-            response (requests.Response): Ответ от сервера.
+            response (aiohttp.ClientResponse): Ответ от сервера.
 
         Returns:
             list: Список данных.
         """
         try:
             response.raise_for_status()
-            return json.loads(response.text)["items"]
-        except requests.RequestException as e:
+            data = await response.json()
+            return data["items"]
+        except aiohttp.ClientResponseError as e:
             print(f"Ошибка при получении данных: {e}")
             return []
 

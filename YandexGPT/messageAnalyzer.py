@@ -4,16 +4,11 @@ from dataBase.database import DataBase
 from functions.functions import get_duration, get_date_next_weekday
 from mTyping.dictTypes import MessageForAnalyzeDict
 
-
 import datetime
 from typing import TypedDict
 
-
-
 class MessageAnalyzer:
-    
-        
-    def __init__(self, chatAnalyzer:ChatScriptAnalyzer, db:DataBase, crm:CrmDataManagerInterface):
+    def __init__(self, chatAnalyzer: ChatScriptAnalyzer, db: DataBase, crm: CrmDataManagerInterface):
         """
         Инициализирует объект анализатора сообщений.
 
@@ -25,50 +20,68 @@ class MessageAnalyzer:
         self._chatAnalyzer = chatAnalyzer
         self._db = db
         self._crm = crm
-    
 
-    def analyze_GPT_answer(self, data:MessageForAnalyzeDict):
-        message = data['text']
-        if "|" in data['text']:
-           message = self._analyze_system_message(data)
-        return message
-
-    def _analyze_system_message(self, data:MessageForAnalyzeDict):
-        message = data['text'].split('|')
-        if "отработк" in message[0].lower():
-            self._process_work_off_message(data)
-            pass
-        return message[-1]
-        pass
-
-    def _process_work_off_message(self, data:MessageForAnalyzeDict):
-        message = data['text'].split('|')
-        if 'success' in message[1].lower() :
-            self._work_off_success(data)
-            pass
-        elif message[1].lower() == 'fail':
-            self._work_off_fail(data)
-            pass
-        pass
-
-    def _work_off_success(self, data:MessageForAnalyzeDict):
+    async def analyze_GPT_answer(self, data: MessageForAnalyzeDict) -> str:
         """
-        Обрабатывает успешное сообщение об отработке.
+        Асинхронно анализирует ответ модели GPT.
 
         Args:
-            data (_Message): Данные сообщения, включающие идентификатор чата и текст сообщения.
+            data (MessageForAnalyzeDict): Данные для анализа.
+
+        Returns:
+            str: Сообщение после анализа.
+        """
+        message = data['text']
+        if "|" in data['text']:
+            message = await self._analyze_system_message(data)
+        return message
+
+    async def _analyze_system_message(self, data: MessageForAnalyzeDict) -> str:
+        """
+        Асинхронно анализирует системное сообщение.
+
+        Args:
+            data (MessageForAnalyzeDict): Данные для анализа.
+
+        Returns:
+            str: Сообщение после анализа.
+        """
+        message = data['text'].split('|')
+        if "отработк" in message[0].lower():
+            await self._process_work_off_message(data)
+        return message[-1]
+
+    async def _process_work_off_message(self, data: MessageForAnalyzeDict) -> None:
+        """
+        Асинхронно обрабатывает сообщение об отработке.
+
+        Args:
+            data (MessageForAnalyzeDict): Данные для анализа.
+        """
+        message = data['text'].split('|')
+        if 'success' in message[1].lower():
+            await self._work_off_success(data)
+        elif message[1].lower() == 'fail':
+            await self._work_off_fail(data)
+
+    async def _work_off_success(self, data: MessageForAnalyzeDict) -> None:
+        """
+        Асинхронно обрабатывает успешное сообщение об отработке.
+
+        Args:
+            data (MessageForAnalyzeDict): Данные сообщения, включающие идентификатор чата и текст сообщения.
         """
         try:
             idGroup = int(data['text'].split('|')[2])
-            student = self._db.get_student(data['chatId'])
-            regularLesson = self._db.get_regular_lessons(idGroup)
-            groupOccupancy = self._db.get_group_occupancy_data(idGroup)
+            student = await self._db.get_student(data['chatId'])
+            regularLesson = await self._db.get_regular_lessons(idGroup)
+            groupOccupancy = await self._db.get_group_occupancy_data(idGroup)
             dataForCRM = {
                 'topic': student['topic'],
                 'lesson_date': groupOccupancy['dateOfEvent'],
-                'customer_ids':list([student['idStudent']]),
+                'customer_ids': list([student['idStudent']]),
                 'time_from': regularLesson['timeFrom'],
-                'duration': get_duration(regularLesson['timeFrom'], regularLesson['timeTo']),
+                'duration': await get_duration(regularLesson['timeFrom'], regularLesson['timeTo']),
                 'subject_id': regularLesson['subjectId'],
                 'teacher_ids': list([regularLesson['teacher']])
             }
@@ -76,24 +89,29 @@ class MessageAnalyzer:
             dataForDB = {
                 'count': groupOccupancy['count'] + 1
             }
-            studentDataString = str({"idStudent":student['idStudent'], "topic":student['topic'], "idLesson":student['idLesson']})
+            studentDataString = str({"idStudent": student['idStudent'], "topic": student['topic'], "idLesson": student['idLesson']})
             if groupOccupancy['newStudents'] == '' or groupOccupancy['newStudents'] is None:
                 dataForDB['newStudents'] = studentDataString
             else:
                 dataForDB['newStudents'] = f"{groupOccupancy['newStudents']}, {studentDataString}"
 
-            self._crm.add_work_off(dataForCRM)
-            self._db.updateData(dataForDB, "groupOccupancy", {'idGroup': idGroup})
-            self._db.updateData({'dateLastConnection': datetime.date.today().strftime('%y-%m-%d'), 'groupForWorkingOut': idGroup},"StudentAbsences", {'phoneNumber': data['chatId']})
+            await self._crm.add_work_off(dataForCRM)
+            await self._db.update_data(dataForDB, "GroupOccupancy", {'idGroup': idGroup})
+            await self._db.update_data({'dateLastConnection': datetime.date.today().strftime('%y-%m-%d'), 'groupForWorkingOut': idGroup}, "StudentAbsences", {'phoneNumber': data['chatId']})
         except Exception as e:
             print(f"An error occurred while processing work off success: {e}")
-        
 
-    def _work_off_fail(self, data:MessageForAnalyzeDict):
-        dateNextConnextion = int(data['text'].split('|')[2])
+    async def _work_off_fail(self, data: MessageForAnalyzeDict) -> None:
+        """
+        Асинхронно обрабатывает неудачное сообщение об отработке.
+
+        Args:
+            data (MessageForAnalyzeDict): Данные сообщения, включающие идентификатор чата и текст сообщения.
+        """
+        dateNextConnection = int(data['text'].split('|')[2])
         dataForDB = {
-            'dateLastConnection' : datetime.datetime.now().strftime('%Y-%m-%d'),
-            'dateNextConnection': get_date_next_weekday(datetime.datetime.now().weekday()).strftime('%Y-%m-%d')
+            'dateLastConnection': datetime.datetime.now().strftime('%Y-%m-%d'),
+            'dateNextConnection': (await get_date_next_weekday(datetime.datetime.now().weekday())).strftime('%Y-%m-%d')
         }
-        self._db.updateData(dataForDB, "StudentAbsences", {'phoneNumber': data['idChat']})
+        await self._db.update_data(dataForDB, "StudentAbsences", {'phoneNumber': data['chatId']})
 

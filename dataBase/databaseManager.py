@@ -1,5 +1,5 @@
+import aiosqlite
 from functions.functions import db_ops
-import sqlite3
 
 class DatabaseManager:
     """
@@ -16,13 +16,13 @@ class DatabaseManager:
         self.path = path
         self._create_tables()
 
-    def _create_tables(self):
+    async def _create_tables(self):
         """
         Создаёт необходимые таблицы в базе данных.
         """
         try:
-            with db_ops(self.path) as cursor:
-                cursor.executescript(
+            async with db_ops(self.path) as cursor:
+                await cursor.executescript(
                     '''
                     CREATE TABLE IF NOT EXISTS StudentAbsences(
                     idStudent INTEGER NOT NULL, 
@@ -72,10 +72,10 @@ class DatabaseManager:
                     )
                     '''
                 )
-        except sqlite3.Error as e:
+        except aiosqlite.Error as e:
             print(f"Ошибка при создании таблиц: {e}")
 
-    def insert_data(self, table: str, data: dict) -> None:
+    async def insert_data(self, table: str, data: dict) -> None:
         """
         Вставляет данные в указанную таблицу.
 
@@ -89,12 +89,12 @@ class DatabaseManager:
         placeholders = ','.join(['?' for i in range(len(data))])
         colums = ','.join(keys)
         try:
-            with db_ops(self.path) as cursor:
-                cursor.execute(f"INSERT INTO {table} ({colums}) VALUES ({placeholders})", tuple(data.values()))
-        except sqlite3.Error as e:
+            async with db_ops(self.path) as cursor:
+                await cursor.execute(f"INSERT INTO {table} ({colums}) VALUES ({placeholders})", tuple(data.values()))
+        except aiosqlite.Error as e:
             print(f"Ошибка при вставке данных: {e}")
 
-    def insert_a_lot_of_unique_data(self, table: str, data: list[dict], selectedFields: list[str]) -> None:
+    async def insert_a_lot_of_unique_data(self, table: str, data: list[dict], selectedFields: list[str]) -> None:
         """
         Вставляет множество уникальных записей в указанную таблицу.
 
@@ -106,9 +106,9 @@ class DatabaseManager:
         if not data or not selectedFields:
             return
         for item in data:
-            self.insert_unique_data(table, item, {key: item[key] for key in selectedFields})
+            await self.insert_unique_data(table, item, {key: item[key] for key in selectedFields})
 
-    def insert_a_lot_of_data(self, table: str, data: list[dict]) -> None:
+    async def insert_a_lot_of_data(self, table: str, data: list[dict]) -> None:
         """
         Вставляет множество записей в указанную таблицу.
 
@@ -119,9 +119,9 @@ class DatabaseManager:
         if not data:
             return
         for item in data:
-            self.insert_data(table, item)
+            await self.insert_data(table, item)
 
-    def insert_unique_data(self, table: str, data: dict, selectedParams: dict) -> None:
+    async def insert_unique_data(self, table: str, data: dict, selectedParams: dict) -> None:
         """
         Вставляет уникальные данные в указанную таблицу.
 
@@ -134,14 +134,14 @@ class DatabaseManager:
             return
         sql = f"SELECT * FROM {table} WHERE " + " AND ".join([f"{key} = ?" for key in selectedParams.keys()])
         try:
-            with db_ops(self.path) as cursor:
-                cursor.execute(sql, tuple(selectedParams.values()))
-                if not cursor.fetchone():
-                    self.insert_data(table, data)
-        except sqlite3.Error as e:
+            async with db_ops(self.path) as cursor:
+                await cursor.execute(sql, tuple(selectedParams.values()))
+                if not await cursor.fetchone():
+                    await self.insert_data(table, data)
+        except aiosqlite.Error as e:
             print(f"Ошибка при вставке уникальных данных: {e}")
 
-    def clear_table(self, table: str) -> None:
+    async def clear_table(self, table: str) -> None:
         """
         Очищает указанную таблицу.
 
@@ -149,12 +149,12 @@ class DatabaseManager:
             table (str): Название таблицы.
         """
         try:
-            with db_ops(self.path) as cursor:
-                cursor.execute(f"DELETE FROM {table}")
-        except sqlite3.Error as e:
+            async with db_ops(self.path) as cursor:
+                await cursor.execute(f"DELETE FROM {table}")
+        except aiosqlite.Error as e:
             print(f"Ошибка при очистке таблицы: {e}")
 
-    def _select_data(self, table: str, getAllData: bool = True, selectedParams: dict = None) -> tuple:
+    async def _select_data(self, table: str, getAllData: bool = True, selectedParams: dict = None) -> tuple:
         """
         Выбирает данные из указанной таблицы.
 
@@ -173,17 +173,17 @@ class DatabaseManager:
             sql = f"SELECT * FROM {table} WHERE " + " AND ".join([f"{key} = ?" for key in selectedParams.keys()])
             params = tuple(selectedParams.values())
         try:
-            with db_ops(self.path) as cursor:
-                cursor.execute(sql, params)
+            async with db_ops(self.path) as cursor:
+                await cursor.execute(sql, params)
                 if getAllData:
-                    return cursor.fetchall()
+                    return await cursor.fetchall()
                 else:
-                    return cursor.fetchone()
-        except sqlite3.Error as e:
+                    return await cursor.fetchone()
+        except aiosqlite.Error as e:
             print(f"Ошибка при выборке данных: {e}")
             return ()
 
-    def select_all_data(self, table: str, selectedParams: dict = None) -> list[tuple]:
+    async def select_all_data(self, table: str, selectedParams: dict = None) -> list[tuple]:
         """
         Выбирает все данные из указанной таблицы.
 
@@ -194,9 +194,9 @@ class DatabaseManager:
         Returns:
             list[tuple]: Список кортежей с выбранными данными.
         """
-        return self._select_data(table, True, selectedParams)
+        return await self._select_data(table, True, selectedParams)
 
-    def select_one_data(self, table: str, selectedParams: dict = None) -> tuple:
+    async def select_one_data(self, table: str, selectedParams: dict = None) -> tuple:
         """
         Выбирает одну запись из указанной таблицы.
 
@@ -207,9 +207,9 @@ class DatabaseManager:
         Returns:
             tuple: Кортеж с выбранными данными.
         """
-        return self._select_data(table, False, selectedParams)
+        return await self._select_data(table, False, selectedParams)
 
-    def update_data(self, data: dict[str, any], tableName: str, selectPams: dict[str, any] | None) -> None:
+    async def update_data(self, data: dict[str, any], tableName: str, selectPams: dict[str, any] | None) -> None:
         """
         Обновляет данные в указанной таблице.
 
@@ -229,12 +229,12 @@ class DatabaseManager:
             else:
                 sql = f"UPDATE {tableName} SET {set_clause}"
 
-            with db_ops(self.path) as cursor:
-                cursor.execute(sql, params)
-        except sqlite3.Error as e:
+            async with db_ops(self.path) as cursor:
+                await cursor.execute(sql, params)
+        except aiosqlite.Error as e:
             print(f"Ошибка при обновлении данных в таблице {tableName}: {e}")
 
-    def delete_data(self, table: str, selectedParams: dict = None) -> None:
+    async def delete_data(self, table: str, selectedParams: dict = None) -> None:
         """
         Удаляет данные из указанной таблицы.
 
@@ -249,12 +249,12 @@ class DatabaseManager:
             sql = f"DELETE FROM {table} WHERE " + " AND ".join([f"{key} = ?" for key in selectedParams.keys()])
             param = tuple(selectedParams.values())
         try:
-            with db_ops(self.path) as cursor:
-                cursor.execute(sql, param)
-        except sqlite3.Error as e:
+            async with db_ops(self.path) as cursor:
+                await cursor.execute(sql, param)
+        except aiosqlite.Error as e:
             print(f"Ошибка при удалении данных: {e}")
 
-    def delete_a_lot_of_data(self, table: str, data: list[dict]) -> None:
+    async def delete_a_lot_of_data(self, table: str, data: list[dict]) -> None:
         """
         Удаляет множество записей из указанной таблицы.
 
@@ -265,4 +265,4 @@ class DatabaseManager:
         if not data:
             return
         for item in data:
-            self.delete_data(table, item)
+            await self.delete_data(table, item)

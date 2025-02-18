@@ -39,9 +39,9 @@ class AlfaCRMDataManager(CrmDataManagerInterface):
         self._updatePeriodToNextLesson = updatePeriotByNexLesson
         self._updatePeriodToPreviousLesson = updatePeriodByPrevLesson
 
-    def _select_regular_lessons(self, all_lessons: list) -> list:
+    async def _select_regular_lessons(self, all_lessons: list) -> list:
         """
-        Получает регулярные уроки из списка всех уроков.
+        Асинхронно получает регулярные уроки из списка всех уроков.
 
         Args:
             all_lessons (list): Список всех уроков.
@@ -51,9 +51,9 @@ class AlfaCRMDataManager(CrmDataManagerInterface):
         """
         return [lesson for lesson in all_lessons if lesson['regular_id'] is not None]
 
-    def _get_next_lessons_by_location(self, locationId: int) -> list[dict]:
+    async def _get_next_lessons_by_location(self, locationId: int) -> list[dict]:
         """
-        Получает запланированные уроки по идентификатору локации.
+        Асинхронно получает запланированные уроки по идентификатору локации.
 
         Args:
             locationId (int): Идентификатор локации.
@@ -68,19 +68,19 @@ class AlfaCRMDataManager(CrmDataManagerInterface):
         while True:
             data['page'] = page
             try:
-                temp = self._crm.get_items(self._crm.get_data("Lessons", data))
+                temp = await self._crm.get_items(await self._crm.get_data("Lessons", data))
                 if not temp:
                     break
                 page += 1
-                lessons.append(self._select_regular_lessons(temp))
+                lessons.append(await self._select_regular_lessons(temp))
             except Exception as e:
                 print(f"Ошибка при получении следующих уроков: {e}")
                 break
         return lessons
 
-    def _get_previus_lesson_by_group_id(self, groupId: int) -> list[dict]:
+    async def _get_previus_lesson_by_group_id(self, groupId: int) -> list[dict]:
         """
-        Получает проведённые уроки по идентификатору группы.
+        Асинхронно получает проведённые уроки по идентификатору группы.
 
         Args:
             groupId (int): Идентификатор группы.
@@ -91,28 +91,28 @@ class AlfaCRMDataManager(CrmDataManagerInterface):
         datePreviousLesson = date.today() - timedelta(self._updatePeriodToPreviousLesson)
         data = {'status': 3, 'group_id': groupId, 'date_from': datePreviousLesson.strftime('%y-%m-%d'), 'date_to': date.today().strftime('%y-%m-%d')}
         try:
-            return self._crm.get_items(self._crm.get_data("Lessons", data))
+            return await self._crm.get_items(await self._crm.get_data("Lessons", data))
         except Exception as e:
             print(f"Ошибка при получении предыдущих уроков: {e}")
             return []
 
-    def get_locations(self) -> list:
+    async def get_locations(self) -> list:
         """
-        Получает список локаций.
+        Асинхронно получает список локаций.
 
         Returns:
             list: Список локаций.
         """
         try:
-            locations = self._crm.get_items(self._crm.get_data('Locations', {'is_active': 1}))
-            return self._format_locations_data(locations)
+            locations = await self._crm.get_items(await self._crm.get_data('Locations', {'is_active': 1}))
+            return await self._format_locations_data(locations)
         except Exception as e:
             print(f"Ошибка при получении локаций: {e}")
             return []
 
-    def _format_locations_data(self, locations: list) -> list[LocationDict]:
+    async def _format_locations_data(self, locations: list) -> list[LocationDict]:
         """
-        Форматирует данные локаций.
+        Асинхронно форматирует данные локаций.
 
         Args:
             locations (list): Список локаций.
@@ -125,9 +125,9 @@ class AlfaCRMDataManager(CrmDataManagerInterface):
             locationsList.append({'id': i['id'], 'name': i['name']})
         return locationsList
 
-    def get_regular_lessons_by_location_id(self, locationId: int) -> list[RegularLessonDict]:
+    async def get_regular_lessons_by_location_id(self, locationId: int) -> list[RegularLessonDict]:
         """
-        Получает регулярные уроки по идентификатору локации.
+        Асинхронно получает регулярные уроки по идентификатору локации.
 
         Args:
             locationId (int): Идентификатор локации.
@@ -135,13 +135,13 @@ class AlfaCRMDataManager(CrmDataManagerInterface):
         Returns:
             list: Список регулярных уроков.
         """
-        nextLesson = self._get_next_lessons_by_location(locationId)
+        nextLesson = await self._get_next_lessons_by_location(locationId)
         regularLesson = []
         for page in nextLesson:
             for item in page:
                 try:
                     groupId = item['group_ids'][0]
-                    prev = self._get_previus_lesson_by_group_id(groupId)[0]
+                    prev = (await self._get_previus_lesson_by_group_id(groupId))[0]
                     regularLesson.append(
                         {
                             'idGroup': groupId,
@@ -152,7 +152,7 @@ class AlfaCRMDataManager(CrmDataManagerInterface):
                             'day': datetime.strptime(item['date'], '%Y-%m-%d').weekday(),
                             'timeFrom': datetime.strptime(item['time_from'], '%Y-%m-%d %H:%M:%S').time().strftime('%H:%M'),
                             'timeTo': datetime.strptime(item['time_to'], '%Y-%m-%d %H:%M:%S').time().strftime('%H:%M'),
-                            'maxStudents': self._get_group_by_id(groupId)[0]['limit'],
+                            'maxStudents': (await self._get_group_by_id(groupId))[0]['limit'],
                             'lastUpdate': date.today().strftime('Y-%m-%d'),
                             'subjectId': item['subject_id'],
                         }
@@ -161,9 +161,9 @@ class AlfaCRMDataManager(CrmDataManagerInterface):
                     print(f"Ошибка при получении регулярных уроков: {e}")
         return regularLesson
 
-    def _get_group_by_id(self, groupId: int) -> list:
+    async def _get_group_by_id(self, groupId: int) -> list:
         """
-        Получает данные группы по идентификатору группы.
+        Асинхронно получает данные группы по идентификатору группы.
 
         Args:
             groupId (int): Идентификатор группы.
@@ -172,14 +172,14 @@ class AlfaCRMDataManager(CrmDataManagerInterface):
             list: Данные группы.
         """
         try:
-            return self._crm.get_items(self._crm.get_data("Groups", {"id": groupId}))
+            return await self._crm.get_items(await self._crm.get_data("Groups", {"id": groupId}))
         except Exception as e:
             print(f"Ошибка при получении данных группы: {e}")
             return []
 
-    def get_teachers(self) -> list[LocationDict]:
+    async def get_teachers(self) -> list[LocationDict]:
         """
-        Получает список учителей.
+        Асинхронно получает список учителей.
 
         Returns:
             list: Список учителей.
@@ -188,7 +188,7 @@ class AlfaCRMDataManager(CrmDataManagerInterface):
         teachers = []
         while True:
             try:
-                teacher = self._crm.get_items(self._crm.get_data('Teachers', {'removed': 1, 'page': page}))
+                teacher = await self._crm.get_items(await self._crm.get_data('Teachers', {'removed': 1, 'page': page}))
                 if not teacher:
                     break
                 teachers.append(teacher)
@@ -196,11 +196,11 @@ class AlfaCRMDataManager(CrmDataManagerInterface):
             except Exception as e:
                 print(f"Ошибка при получении учителей: {e}")
                 break
-        return self._format_teachers_data(teachers)
+        return await self._format_teachers_data(teachers)
 
-    def _format_teachers_data(self, data: list) -> list[LocationDict]:
+    async def _format_teachers_data(self, data: list) -> list[LocationDict]:
         """
-        Форматирует данные учителей.
+        Асинхронно форматирует данные учителей.
 
         Args:
             data (list): Список данных учителей.
@@ -214,9 +214,9 @@ class AlfaCRMDataManager(CrmDataManagerInterface):
                 teachers.append({'id': item['id'], 'name': item['name']})
         return teachers
 
-    def get_students_missed_lesson(self, groupId: int) -> list[StudentAbsenceDict]:
+    async def get_students_missed_lesson(self, groupId: int) -> list[StudentAbsenceDict]:
         """
-        Получает список студентов, пропустивших урок.
+        Асинхронно получает список студентов, пропустивших урок.
 
         Args:
             groupId (int): Идентификатор группы.
@@ -225,12 +225,12 @@ class AlfaCRMDataManager(CrmDataManagerInterface):
             list: Список студентов, пропустивших урок.
         """
         try:
-            group = self._get_previus_lesson_by_group_id(groupId)[0]
+            group = (await self._get_previus_lesson_by_group_id(groupId))[0]
             skipping = []
-            allStudents = self._get_students()
+            allStudents = await self._get_students()
             for student in group['details']:
                 if not student['is_attend']:
-                    studentData = self._find_student(allStudents, 'id', student['customer_id'])
+                    studentData = await self._find_student(allStudents, 'id', student['customer_id'])
                     if studentData:
                         skipping.append(
                             {
@@ -249,9 +249,9 @@ class AlfaCRMDataManager(CrmDataManagerInterface):
             print(f"Ошибка при получении студентов, пропустивших урок: {e}")
             return []
 
-    def _get_students(self) -> list[dict]:
+    async def _get_students(self) -> list[dict]:
         """
-        Получает список студентов из CRM.
+        Асинхронно получает список студентов из CRM.
 
         Returns:
             list: Список студентов.
@@ -260,7 +260,7 @@ class AlfaCRMDataManager(CrmDataManagerInterface):
         students = []
         while True:
             try:
-                onePage = self._crm.get_items(self._crm.get_data("Students", {"removed": 0, "is_study": 1, "page": page, 'withGroups': False}))
+                onePage = await self._crm.get_items(await self._crm.get_data("Students", {"removed": 0, "is_study": 1, "page": page, 'withGroups': False}))
                 if not onePage:
                     break
                 students.append(onePage)
@@ -270,9 +270,9 @@ class AlfaCRMDataManager(CrmDataManagerInterface):
                 break
         return students
 
-    def _find_student(self, table: list, key: str, value) -> list:
+    async def _find_student(self, table: list, key: str, value) -> list:
         """
-        Находит студента в таблице по ключу и значению.
+        Асинхронно находит студента в таблице по ключу и значению.
 
         Args:
             table (list): Таблица студентов.
@@ -288,9 +288,9 @@ class AlfaCRMDataManager(CrmDataManagerInterface):
                     return record
         return []
 
-    def add_work_off(self, data: CreateLessonModelDict) -> None:
+    async def add_work_off(self, data: CreateLessonModelDict) -> None:
         """
-        Добавляет отработку урока.
+        Асинхронно добавляет отработку урока.
 
         Args:
             data (CreateLessonModelDict): Данные урока.
@@ -299,11 +299,11 @@ class AlfaCRMDataManager(CrmDataManagerInterface):
             pass
         elif self._workOffType == self.WorkOffType.ADD_TO_NEW_LESSON:
             data.update({'lesson_type_id': 4})
-            self._create_new_lesson(data)
+            await self._create_new_lesson(data)
 
-    def _create_new_lesson(self, data: CreateLessonModelDict) -> str:
+    async def _create_new_lesson(self, data: CreateLessonModelDict) -> str:
         """
-        Создает новый урок.
+        Асинхронно создает новый урок.
 
         Args:
             data (CreateLessonModelDict): Данные урока.
@@ -312,7 +312,7 @@ class AlfaCRMDataManager(CrmDataManagerInterface):
             str: Ответ от сервера.
         """
         try:
-            return self._crm.create_model("Lessons", data)
+            return await self._crm.create_model("Lessons", data)
         except Exception as e:
             print(f"Ошибка при создании нового урока: {e}")
             return ""

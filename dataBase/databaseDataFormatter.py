@@ -1,5 +1,5 @@
 from mTyping.dictTypes import RegularLessonDict, StudentAbsenceDict, LocationDict, GroupOccupancyDict
-import sqlite3
+import aiosqlite
 import datetime
 from functions.functions import get_date_next_weekday
 
@@ -8,9 +8,9 @@ class DatabaseDataFormatter:
     Класс для форматирования данных из базы данных.
     """
 
-    def format_group_occupancy_data(self, group: tuple) -> GroupOccupancyDict:
+    async def format_group_occupancy_data(self, group: tuple) -> GroupOccupancyDict:
         """
-        Форматирует данные о заполненности группы.
+        Асинхронно форматирует данные о заполненности группы.
 
         Args:
             group (tuple): Кортеж с данными о заполненности группы.
@@ -21,14 +21,14 @@ class DatabaseDataFormatter:
         return {
             'idGroup': group[0],
             'idsStudents': group[2],
-            'dateOfEvent': get_date_next_weekday(group[5]).strftime('%d.%m.%Y'),
+            'dateOfEvent': (await get_date_next_weekday(group[5])).strftime('%d.%m.%Y'),
             'count': len(group[2].split(',')),
             'lastUpdate': datetime.date.today()
         }
 
-    def format_groups_occupancy_data(self, groups: list[tuple]) -> list[GroupOccupancyDict]:
+    async def format_groups_occupancy_data(self, groups: list[tuple]) -> list[GroupOccupancyDict]:
         """
-        Форматирует данные о заполненности групп.
+        Асинхронно форматирует данные о заполненности групп.
 
         Args:
             groups (list[tuple]): Список кортежей с данными о заполненности групп.
@@ -38,12 +38,12 @@ class DatabaseDataFormatter:
         """
         allGroups = []
         for i in groups:
-            allGroups.append(self.format_group_occupancy_data(i))
+            allGroups.append(await self.format_group_occupancy_data(i))
         return allGroups
 
-    def format_locations_or_teachers(self, data: list[tuple]) -> list[LocationDict]:
+    async def format_locations_or_teachers(self, data: list[tuple]) -> list[LocationDict]:
         """
-        Форматирует данные о локациях или преподавателях.
+        Асинхронно форматирует данные о локациях или преподавателях.
 
         Args:
             data (list[tuple]): Список кортежей с данными о локациях или преподавателях.
@@ -54,15 +54,15 @@ class DatabaseDataFormatter:
         try:
             dicts = []
             for i in data:
-                dicts.append(self.format_location_or_teacher(i))
+                dicts.append(await self.format_location_or_teacher(i))
             return dicts
-        except sqlite3.Error as e:
+        except aiosqlite.Error as e:
             print(f"Ошибка при форматировании данных о локациях или преподавателях: {e}")
             return []
 
-    def format_location_or_teacher(self, data: tuple) -> LocationDict:
+    async def format_location_or_teacher(self, data: tuple) -> LocationDict:
         """
-        Форматирует данные о локации или преподавателе.
+        Асинхронно форматирует данные о локации или преподавателе.
 
         Args:
             data (tuple): Кортеж с данными о локации или преподавателе.
@@ -72,9 +72,9 @@ class DatabaseDataFormatter:
         """
         return {'id': data[0], 'name': data[1]}
 
-    def fromat_regular_lessons(self, lessons: list[tuple]) -> list[RegularLessonDict]:
+    async def format_regular_lessons(self, lessons: list[tuple]) -> list[RegularLessonDict]:
         """
-        Форматирует данные о регулярных занятиях.
+        Асинхронно форматирует данные о регулярных занятиях.
 
         Args:
             lessons (list[tuple]): Список кортежей с данными о регулярных занятиях.
@@ -84,12 +84,12 @@ class DatabaseDataFormatter:
         """
         regularLessonsList = []
         for i in lessons:
-            regularLessonsList.append(self.format_regular_lesson(i))
+            regularLessonsList.append(await self.format_regular_lesson(i))
         return regularLessonsList
 
-    def format_regular_lesson(self, lesson: tuple) -> RegularLessonDict:
+    async def format_regular_lesson(self, lesson: tuple) -> RegularLessonDict:
         """
-        Форматирует данные о регулярном занятии.
+        Асинхронно форматирует данные о регулярном занятии.
 
         Args:
             lesson (tuple): Кортеж с данными о регулярном занятии.
@@ -112,9 +112,9 @@ class DatabaseDataFormatter:
             'subjectId': lesson[11],
         }
 
-    def format_students_absences(self, students: list[tuple]) -> list[StudentAbsenceDict]:
+    async def format_students_absences(self, students: list[tuple]) -> list[StudentAbsenceDict]:
         """
-        Форматирует данные об отсутствии студентов.
+        Асинхронно форматирует данные об отсутствии студентов.
 
         Args:
             students (list[tuple]): Список кортежей с данными об отсутствии студентов.
@@ -124,12 +124,12 @@ class DatabaseDataFormatter:
         """
         studentsList = []
         for i in students:
-            studentsList.append(self.format_student_absence(i))
+            studentsList.append(await self.format_student_absence(i))
         return studentsList
 
-    def format_student_absence(self, student: tuple) -> StudentAbsenceDict:
+    async def format_student_absence(self, student: tuple) -> StudentAbsenceDict:
         """
-        Форматирует данные об отсутствии студента.
+        Асинхронно форматирует данные об отсутствии студента.
 
         Args:
             student (tuple): Кортеж с данными об отсутствии студента.

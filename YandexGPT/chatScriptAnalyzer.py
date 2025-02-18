@@ -1,10 +1,9 @@
 from YandexGPT.yandexGPTModel import YandexGPTModel
 import json
-
-
+import aiofiles
 
 class ChatScriptAnalyzer:
-    def __init__(self, gpt:YandexGPTModel, instractionsPath:str):
+    def __init__(self, gpt: YandexGPTModel, instractionsPath: str):
         """
         Инициализирует объект анализатора сообщений пользователя.
 
@@ -14,10 +13,10 @@ class ChatScriptAnalyzer:
         """
         self._gpt = gpt
         self._instractionsPath = instractionsPath
-    
-    def _get_scenaries(self, instructionsData:dict) -> str:
+
+    async def _get_scenaries(self, instructionsData: dict) -> str:
         """
-        Получает сценарии из данных инструкций.
+        Асинхронно получает сценарии из данных инструкций.
 
         Args:
             instructionsData (dict): Данные инструкций.
@@ -27,12 +26,12 @@ class ChatScriptAnalyzer:
         """
         scenaries = "Возможные сценарии: \n"
         for key in instructionsData['scenaries'].keys():
-            scenaries += key + ": "+ instructionsData['scenaries'][key] + "\n"
+            scenaries += key + ": " + instructionsData['scenaries'][key] + "\n"
         return scenaries
 
-    def _get_prompt(self, message:str) -> list:
+    async def _get_prompt(self, message: str) -> list:
         """
-        Получает запрос для модели GPT.
+        Асинхронно получает запрос для модели GPT.
 
         Args:
             message (str): Сообщение пользователя.
@@ -40,16 +39,16 @@ class ChatScriptAnalyzer:
         Returns:
             list: Список сообщений для отправки в модель GPT.
         """
-        with open(self._instractionsPath, encoding='utf-8') as f:
-            instructionData = json.load(f)
+        async with aiofiles.open(self._instractionsPath, encoding='utf-8') as f:
+            instructionData = json.loads(await f.read())
         return [
             {
-            "role": "system",
-            "text": instructionData['instruction']
+                "role": "system",
+                "text": instructionData['instruction']
             },
             {
-            "role": "system",
-            "text": self._get_scenaries(instructionData)
+                "role": "system",
+                "text": await self._get_scenaries(instructionData)
             },
             {
                 "role": "user",
@@ -57,9 +56,9 @@ class ChatScriptAnalyzer:
             }
         ]
 
-    def analyze(self, message:str) -> str:
+    async def analyze(self, message: str) -> str:
         """
-        Анализирует сообщение пользователя и отправляет его в модель GPT.
+        Асинхронно анализирует сообщение пользователя и отправляет его в модель GPT.
 
         Args:
             message (str): Сообщение пользователя.
@@ -67,5 +66,5 @@ class ChatScriptAnalyzer:
         Returns:
             str: Ответ модели GPT.
         """
-        return self._gpt.request(self._get_prompt(message))
-      
+        return await self._gpt.request(await self._get_prompt(message))
+

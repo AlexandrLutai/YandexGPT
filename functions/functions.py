@@ -1,29 +1,29 @@
-from contextlib import contextmanager
+from contextlib import asynccontextmanager
 import datetime
-import sqlite3
+import aiosqlite
 
-@contextmanager
-def db_ops(db_name):
-    conn = sqlite3.connect(db_name)
+@asynccontextmanager
+async def db_ops(db_name):
+    conn = await aiosqlite.connect(db_name)
     try:
-        cur = conn.cursor()
+        cur = await conn.cursor()
         yield cur
     except Exception as e:
         # do something with exception
-        conn.rollback()
+        await conn.rollback()
         raise e
     else:
-        conn.commit()
+        await conn.commit()
     finally:
-        conn.close()
+        await conn.close()
 
 
-def get_date_next_weekday(numberDay:int):
+async def get_date_next_weekday(numberDay:int):
    
     d = datetime.timedelta( (7 + numberDay - datetime.date.today().weekday())%7 ).days
     return  datetime.date.today() + datetime.timedelta(d)
 
-def get_day_name(day:int) ->str:
+async def get_day_name(day:int) ->str:
     match(day):
         case 0:
             return 'Понедельник'
@@ -39,7 +39,7 @@ def get_day_name(day:int) ->str:
             return 'Суббота'
         case 6:
             return 'Воскресенье'
-def assign_work_offs_to_text(assignWorkOffs:int) -> str:
+async def assign_work_offs_to_text(assignWorkOffs:int) -> str:
     match assignWorkOffs:
         case 0:
             return "Не желательно"
@@ -47,7 +47,7 @@ def assign_work_offs_to_text(assignWorkOffs:int) -> str:
             return "Можно"
 
 
-def get_duration(timeFrom:str, timeTo:str) -> int:
+async def get_duration(timeFrom:str, timeTo:str) -> int:
     """
     Получает длительность урока.
 
