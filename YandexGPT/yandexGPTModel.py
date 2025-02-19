@@ -50,7 +50,7 @@ class YandexGPTModel:
         Returns:
             str: Ответ модели.
         """
-        prompt = self._fill_GPT_prompt(messages)
+        prompt = await self._fill_GPT_prompt(messages)
 
         async with aiohttp.ClientSession() as session:
             async with session.post(url=self._url, json=prompt, headers=self._headers) as response:
