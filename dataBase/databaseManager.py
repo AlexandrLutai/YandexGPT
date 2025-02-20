@@ -222,11 +222,11 @@ class DatabaseManager:
         """
         try:
             set_clause = ", ".join([f"{key} = ?" for key in data.keys()])
-            params = list(data.values())
+            params = tuple(data.values())
 
             if selectPams:
                 where_clause = " AND ".join([f"{key} = ?" for key in selectPams.keys()])
-                params.extend(selectPams.values())
+                params += tuple(selectPams.values())
                 sql = f"UPDATE {tableName} SET {set_clause} WHERE {where_clause}"
             else:
                 sql = f"UPDATE {tableName} SET {set_clause}"
