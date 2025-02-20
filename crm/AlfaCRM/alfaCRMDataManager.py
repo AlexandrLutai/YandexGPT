@@ -3,7 +3,7 @@ from datetime import date, datetime, timedelta
 from crm.AlfaCRM.alfaCRM import AlfaCRM
 from crm.crmDataManagerInterface import CrmDataManagerInterface
 from mTyping.dictTypes import CreateLessonModelDict, StudentAbsenceDict, LocationDict, RegularLessonDict
-
+import aiohttp
 # Пересмотреть функции доступа к CRM, из-за частых обращений работает крайне долго,
 # Подумать над тем, чтобы вытягивать все нужные данные одним запросом.
 class AlfaCRMDataManager(CrmDataManagerInterface):
@@ -68,13 +68,26 @@ class AlfaCRMDataManager(CrmDataManagerInterface):
         while True:
             data['page'] = page
             try:
-                temp = await self._crm.get_items(await self._crm.get_data("Lessons", data))
+                temp = await self._crm.get_data("Lessons", data)
+              
                 if not temp:
                     break
                 page += 1
-                lessons.append(await self._select_regular_lessons(temp))
+                lessons.extend(await self._select_regular_lessons(temp))
+            except aiohttp.ClientConnectionError as e:
+                print(f"Ошибка соединения при получении следующих уроков: {e}")
+                break
+            except aiohttp.ClientResponseError as e:
+                print(f"Ошибка ответа сервера при получении следующих уроков: {e}")
+                break
+            except aiohttp.ClientPayloadError as e:
+                print(f"Ошибка загрузки данных при получении следующих уроков: {e}")
+                break
+            except RuntimeError as e:
+                print(f"Ошибка выполнения при получении следующих уроков: {e}")
+                break
             except Exception as e:
-                print(f"Ошибка при получении следующих уроков: {e}")
+                print(f"Неизвестная ошибка при получении следующих уроков: {e}")
                 break
         return lessons
 
@@ -91,9 +104,16 @@ class AlfaCRMDataManager(CrmDataManagerInterface):
         datePreviousLesson = date.today() - timedelta(self._updatePeriodToPreviousLesson)
         data = {'status': 3, 'group_id': groupId, 'date_from': datePreviousLesson.strftime('%y-%m-%d'), 'date_to': date.today().strftime('%y-%m-%d')}
         try:
-            return await self._crm.get_items(await self._crm.get_data("Lessons", data))
+            response = await self._crm.get_data("Lessons", data)
+            return response
+        except aiohttp.ClientConnectionError as e:
+            print(f"Ошибка соединения при получении предыдущих уроков: {e}")
+            return []
+        except aiohttp.ClientResponseError as e:
+            print(f"Ошибка ответа сервера при получении предыдущих уроков: {e}")
+            return []
         except Exception as e:
-            print(f"Ошибка при получении предыдущих уроков: {e}")
+            print(f"Неизвестная ошибка при получении предыдущих уроков: {e}")
             return []
 
     async def get_locations(self) -> list:
@@ -104,7 +124,7 @@ class AlfaCRMDataManager(CrmDataManagerInterface):
             list: Список локаций.
         """
         try:
-            locations = await self._crm.get_items(await self._crm.get_data('Locations', {'is_active': 1}))
+            locations = await self._crm.get_data('Locations', {'is_active': 1})
             return await self._format_locations_data(locations)
         except Exception as e:
             print(f"Ошибка при получении локаций: {e}")
@@ -137,24 +157,23 @@ class AlfaCRMDataManager(CrmDataManagerInterface):
         """
         nextLesson = await self._get_next_lessons_by_location(locationId)
         regularLesson = []
-        for page in nextLesson:
-            for item in page:
+        for lesson in nextLesson:
                 try:
-                    groupId = item['group_ids'][0]
+                    groupId = lesson['group_ids'][0]
                     prev = (await self._get_previus_lesson_by_group_id(groupId))[0]
                     regularLesson.append(
                         {
                             'idGroup': groupId,
                             'topic': prev['topic'],
-                            'idsStudents': str(item['customer_ids']),
+                            'idsStudents': str(lesson['customer_ids']),
                             'location': locationId,
-                            'teacher': item['teacher_ids'][0],
-                            'day': datetime.strptime(item['date'], '%Y-%m-%d').weekday(),
-                            'timeFrom': datetime.strptime(item['time_from'], '%Y-%m-%d %H:%M:%S').time().strftime('%H:%M'),
-                            'timeTo': datetime.strptime(item['time_to'], '%Y-%m-%d %H:%M:%S').time().strftime('%H:%M'),
+                            'teacher': lesson['teacher_ids'][0],
+                            'day': datetime.strptime(lesson['date'], '%Y-%m-%d').weekday(),
+                            'timeFrom': datetime.strptime(lesson['time_from'], '%Y-%m-%d %H:%M:%S').time().strftime('%H:%M'),
+                            'timeTo': datetime.strptime(lesson['time_to'], '%Y-%m-%d %H:%M:%S').time().strftime('%H:%M'),
                             'maxStudents': (await self._get_group_by_id(groupId))[0]['limit'],
                             'lastUpdate': date.today().strftime('Y-%m-%d'),
-                            'subjectId': item['subject_id'],
+                            'subjectId': lesson['subject_id'],
                         }
                     )
                 except Exception as e:
@@ -172,7 +191,7 @@ class AlfaCRMDataManager(CrmDataManagerInterface):
             list: Данные группы.
         """
         try:
-            return await self._crm.get_items(await self._crm.get_data("Groups", {"id": groupId}))
+            return await self._crm.get_data("Groups", {"id": groupId})
         except Exception as e:
             print(f"Ошибка при получении данных группы: {e}")
             return []
@@ -188,7 +207,7 @@ class AlfaCRMDataManager(CrmDataManagerInterface):
         teachers = []
         while True:
             try:
-                teacher = await self._crm.get_items(await self._crm.get_data('Teachers', {'removed': 1, 'page': page}))
+                teacher = await self._crm.get_data('Teachers', {'removed': 1, 'page': page})
                 if not teacher:
                     break
                 teachers.append(teacher)
@@ -260,7 +279,7 @@ class AlfaCRMDataManager(CrmDataManagerInterface):
         students = []
         while True:
             try:
-                onePage = await self._crm.get_items(await self._crm.get_data("Students", {"removed": 0, "is_study": 1, "page": page, 'withGroups': False}))
+                onePage = await self._crm.get_data("Students", {"removed": 0, "is_study": 1, "page": page, 'withGroups': False})
                 if not onePage:
                     break
                 students.append(onePage)

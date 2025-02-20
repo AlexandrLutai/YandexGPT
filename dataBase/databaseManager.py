@@ -1,5 +1,5 @@
 import aiosqlite
-from functions.functions import db_ops
+from functions.functions import async_db_ops, db_ops
 
 class DatabaseManager:
     """
@@ -15,14 +15,16 @@ class DatabaseManager:
         """
         self.path = path
         self._create_tables()
+        
 
-    async def _create_tables(self):
+  
+    def _create_tables(self):
         """
         Создаёт необходимые таблицы в базе данных.
         """
         try:
-            async with db_ops(self.path) as cursor:
-                await cursor.executescript(
+            with db_ops(self.path) as cursor:
+                cursor.executescript(
                     '''
                     CREATE TABLE IF NOT EXISTS StudentAbsences(
                     idStudent INTEGER NOT NULL, 
@@ -89,7 +91,7 @@ class DatabaseManager:
         placeholders = ','.join(['?' for i in range(len(data))])
         colums = ','.join(keys)
         try:
-            async with db_ops(self.path) as cursor:
+            async with async_db_ops(self.path) as cursor:
                 await cursor.execute(f"INSERT INTO {table} ({colums}) VALUES ({placeholders})", tuple(data.values()))
         except aiosqlite.Error as e:
             print(f"Ошибка при вставке данных: {e}")
@@ -134,7 +136,7 @@ class DatabaseManager:
             return
         sql = f"SELECT * FROM {table} WHERE " + " AND ".join([f"{key} = ?" for key in selectedParams.keys()])
         try:
-            async with db_ops(self.path) as cursor:
+            async with async_db_ops(self.path) as cursor:
                 await cursor.execute(sql, tuple(selectedParams.values()))
                 if not await cursor.fetchone():
                     await self.insert_data(table, data)
@@ -149,7 +151,7 @@ class DatabaseManager:
             table (str): Название таблицы.
         """
         try:
-            async with db_ops(self.path) as cursor:
+            async with async_db_ops(self.path) as cursor:
                 await cursor.execute(f"DELETE FROM {table}")
         except aiosqlite.Error as e:
             print(f"Ошибка при очистке таблицы: {e}")
@@ -173,7 +175,7 @@ class DatabaseManager:
             sql = f"SELECT * FROM {table} WHERE " + " AND ".join([f"{key} = ?" for key in selectedParams.keys()])
             params = tuple(selectedParams.values())
         try:
-            async with db_ops(self.path) as cursor:
+            async with async_db_ops(self.path) as cursor:
                 await cursor.execute(sql, params)
                 if getAllData:
                     return await cursor.fetchall()
@@ -229,7 +231,7 @@ class DatabaseManager:
             else:
                 sql = f"UPDATE {tableName} SET {set_clause}"
 
-            async with db_ops(self.path) as cursor:
+            async with async_db_ops(self.path) as cursor:
                 await cursor.execute(sql, params)
         except aiosqlite.Error as e:
             print(f"Ошибка при обновлении данных в таблице {tableName}: {e}")
@@ -249,7 +251,7 @@ class DatabaseManager:
             sql = f"DELETE FROM {table} WHERE " + " AND ".join([f"{key} = ?" for key in selectedParams.keys()])
             param = tuple(selectedParams.values())
         try:
-            async with db_ops(self.path) as cursor:
+            async with async_db_ops(self.path) as cursor:
                 await cursor.execute(sql, param)
         except aiosqlite.Error as e:
             print(f"Ошибка при удалении данных: {e}")

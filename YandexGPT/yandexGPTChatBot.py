@@ -27,7 +27,7 @@ class YandexGPTChatBot:
     }
     """
 
-    def __init__(self, gpt: YandexGPTModel, db: DataBase, crm: CrmDataManagerInterface, contextDB: ContextDataBase):
+    def __init__(self, gpt: YandexGPTModel, db: DataBase, crm: CrmDataManagerInterface):
         """
         Инициализирует объект чат-бота YandexGPT.
 
@@ -39,7 +39,7 @@ class YandexGPTChatBot:
         """
         self._gpt = gpt
         self._db = db
-        self._contextDB = contextDB
+        #self._contextDB = contextDB # Для системы с хранением контекста в БД
         self._currentContext:dict[str:list[dict[str:str]]] = {}
         self._groups = []
         self.students = []
@@ -57,10 +57,10 @@ class YandexGPTChatBot:
             list[dict[str:str]]: Список сообщений контекста.
         """
         if not chatId in self._currentContext:
-            if await self._contextDB.findContext(chatId):
-                await self._currentContext.update({chatId: await self._contextDB.getContext(chatId)})
-                return self._currentContext[chatId]
-            else:
+            # if await self._contextDB.findContext(chatId): # Для системы с хранением контекста в БД
+            #     self._currentContext.update({chatId: await self._contextDB.getContext(chatId)})
+            #     return self._currentContext[chatId]
+            # else: 
                 self._currentContext.update({chatId: []})
         return self._currentContext[chatId]
 
@@ -99,8 +99,8 @@ class YandexGPTChatBot:
         Returns:
             list[dict[str:str]]: Список сообщений для отправки.
         """
-        async with aiofiles.open("prompts/chatBotPrompst.json", encoding='utf-8') as f:
-            data = json.load(f)
+        async with await aiofiles.open("prompts/chatBotPrompst.json", encoding='utf-8') as f:
+            data = json.loads(await f.read())
         return [
             {
                 "role": "system",

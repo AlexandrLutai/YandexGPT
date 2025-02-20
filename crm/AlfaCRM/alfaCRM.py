@@ -2,9 +2,6 @@ import aiohttp
 import json
 from typing import Callable
 
-
-
-
 class AlfaCRM:
     """
     Класс для взаимодействия с API AlfaCRM.
@@ -12,29 +9,40 @@ class AlfaCRM:
         MODELS_FOR_GETTING_DATA (dict): Константный словарь, содержащий пути для получения данных из различных моделей.
         MODELS_FOR_CREATING (dict): Константный словарь, содержащий пути для создания новых записей в различных моделях.
     """
-    def _handle_401(func: Callable) -> Callable:
+    def _handle_401(return_items: bool = True) -> Callable:
         """
         Декоратор для обработки ошибки 401 и повторного выполнения запроса.
+        Args:
+            return_items (bool): Если True, возвращает словарь items, иначе возвращает response.
         """
-        async def wrapper(self, *args, **kwargs):
-            try:
-                response = await func(self, *args, **kwargs)
-                response.raise_for_status()
-                return response
-            except aiohttp.ClientResponseError as e:
-                if 'response' in locals() and e.status == 401:
-                    await self._fill_header()
+        def decorator(func: Callable) -> Callable:
+            async def wrapper(self, *args, **kwargs):
+                async with aiohttp.ClientSession() as session:
                     try:
-                        response = await func(self, *args, **kwargs)
+                        response = await func(self, session, *args, **kwargs)
                         response.raise_for_status()
+                        if return_items:
+                            data = await response.json()
+                            return data["items"]
                         return response
                     except aiohttp.ClientResponseError as e:
-                        print(f"Ошибка при повторном выполнении запроса: {e}")
-                        return None
-                else:
-                    print(f"Ошибка при выполнении запроса: {e}")
-                    return None
-        return wrapper
+                        if e.status == 401:
+                            await self._fill_header()
+                            try:
+                                response = await func(self, session, *args, **kwargs)
+                                response.raise_for_status()
+                                if return_items:
+                                    data = await response.json()
+                                    return data["items"]
+                                return response
+                            except aiohttp.ClientResponseError as e:
+                                print(f"Ошибка при повторном выполнении запроса: {e}")
+                                return None
+                        else:
+                            print(f"Ошибка при выполнении запроса: {e}")
+                            return None
+            return wrapper
+        return decorator
 
     MODELS_FOR_GETTING_DATA = {
         "RegularLessons": "regular-lesson/index",
@@ -61,10 +69,14 @@ class AlfaCRM:
         self._email = email
         self._key = key
         self._hostname = hostname
+    
+    async def init(self) -> None:
+        """
+        Инициализирует объект AlfaCRM.
+        """    
+        await self._fill_header()
+        self._brunchId = await self._get_id_brunches(await self._get_brunches())
         
-        self._fill_header()
-        self._brunchId = self._get_id_brunches(self.get_items(self._get_brunches()))
-
     async def _get_temp_token(self) -> str:
         """
         Получает временный токен для авторизации.
@@ -75,10 +87,10 @@ class AlfaCRM:
         path = f"https://{self._hostname}/v2api/auth/login"
         async with aiohttp.ClientSession() as session:
             try:
-                async with session.post(path, json={'email': self._email, 'api_key': self._key}) as response:
-                    response.raise_for_status()
-                    data = await response.json()
-                    return data["token"]
+                response = await session.post(path, json={'email': self._email, 'api_key': self._key})
+                response.raise_for_status()
+                data = await response.json()
+                return data["token"]
             except aiohttp.ClientResponseError as e:
                 print(f"Ошибка при получении временного токена: {e}")
                 return ""
@@ -90,8 +102,8 @@ class AlfaCRM:
         token = await self._get_temp_token()
         self._header = {'X-ALFACRM-TOKEN': token, 'Content-Type': 'application/json', 'Accept': 'application/json'}
 
-    @_handle_401
-    async def _get_brunches(self) -> aiohttp.ClientResponse:
+    @_handle_401(return_items=True)
+    async def _get_brunches(self, session: aiohttp.ClientSession) -> aiohttp.ClientResponse:
         """
         Получает данные филиалов.
 
@@ -99,8 +111,7 @@ class AlfaCRM:
             aiohttp.ClientResponse: Ответ от сервера.
         """
         path = f"https://{self._hostname}/v2api/branch/index"
-        async with aiohttp.ClientSession() as session:
-            return await session.post(path, json={"is_active": 1}, headers=self._header)
+        return await session.post(path, json={"is_active": 1}, headers=self._header)
 
     async def _get_id_brunches(self, brunches: list[int]) -> int:
         """
@@ -121,8 +132,8 @@ class AlfaCRM:
             case _:
                 return brunches[1]["id"]
 
-    @_handle_401
-    async def create_model(self, model: str, data: dict[str, any]) -> aiohttp.ClientResponse:
+    @_handle_401(return_items=False)
+    async def create_model(self, session: aiohttp.ClientSession, model: str, data: dict[str, any]) -> aiohttp.ClientResponse:
         """
         Создает модель в CRM.
 
@@ -134,11 +145,10 @@ class AlfaCRM:
             aiohttp.ClientResponse: Ответ от сервера.
         """
         path = f"https://{self._hostname}/v2api/{self._brunchId}/{AlfaCRM.MODELS_FOR_CREATING[model]}"
-        async with aiohttp.ClientSession() as session:
-            return await session.post(path, json=data, headers=self._header)
+        return await session.post(path, json=data, headers=self._header)
 
-    @_handle_401
-    async def get_data(self, model: str, data: dict[str, any]) -> aiohttp.ClientResponse:
+    @_handle_401(return_items=True)
+    async def get_data(self, session: aiohttp.ClientSession, model: str, data: dict[str, any]) -> aiohttp.ClientResponse:
         """
         Получает данные из CRM.
 
@@ -150,26 +160,8 @@ class AlfaCRM:
             aiohttp.ClientResponse: Ответ от сервера.
         """
         path = f"https://{self._hostname}/v2api/{self._brunchId}/{AlfaCRM.MODELS_FOR_GETTING_DATA[model]}"
-        async with aiohttp.ClientSession() as session:
-            return await session.post(path, json=data, headers=self._header)
+        return await session.post(path, json=data, headers=self._header)
 
-    async def get_items(self, response: aiohttp.ClientResponse) -> dict[str, any]:
-        """
-        Получает список данных из ответа.
-
-        Args:
-            response (aiohttp.ClientResponse): Ответ от сервера.
-
-        Returns:
-            list: Список данных.
-        """
-        try:
-            response.raise_for_status()
-            data = await response.json()
-            return data["items"]
-        except aiohttp.ClientResponseError as e:
-            print(f"Ошибка при получении данных: {e}")
-            return []
 
 
 

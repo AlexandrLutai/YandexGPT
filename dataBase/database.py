@@ -1,5 +1,5 @@
 import aiosqlite
-from functions.functions import db_ops, get_date_next_weekday, get_day_name, assign_work_offs_to_text
+from functions.functions import async_db_ops, get_date_next_weekday, get_day_name, assign_work_offs_to_text
 from mTyping.dictTypes import RegularLessonDict, StudentAbsenceDict, LocationDict, GroupOccupancyDict
 from dataBase.databaseManager import DatabaseManager
 from dataBase.databaseDataFormatter import DatabaseDataFormatter
@@ -18,6 +18,9 @@ class DataBase:
         """
         self._DBManager = DatabaseManager(path)
         self._DBDataFormatter = DatabaseDataFormatter()
+
+    
+
 
     async def add_data_in_table_group_occupancy(self, synchroniseParams: list[int] | None = None) -> None:
         """

@@ -1,9 +1,10 @@
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, contextmanager
 import datetime
 import aiosqlite
+import sqlite3
 
 @asynccontextmanager
-async def db_ops(db_name):
+async def async_db_ops(db_name):
     conn = await aiosqlite.connect(db_name)
     try:
         cur = await conn.cursor()
@@ -17,6 +18,20 @@ async def db_ops(db_name):
     finally:
         await conn.close()
 
+@contextmanager
+def db_ops(db_name):
+    conn =  sqlite3.connect(db_name)
+    try:
+        cur =  conn.cursor()
+        yield cur
+    except Exception as e:
+        # do something with exception
+        conn.rollback()
+        raise e
+    else:
+        conn.commit()
+    finally:
+        conn.close()
 
 async def get_date_next_weekday(numberDay:int):
    
