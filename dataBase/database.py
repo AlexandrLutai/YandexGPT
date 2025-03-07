@@ -33,7 +33,7 @@ class DataBase:
             if synchroniseParams:
                 await self._DBManager.delete_a_lot_of_data("GroupOccupancy", [{"idGroup": i} for i in synchroniseParams])
             regularLessons = await self._DBManager.select_all_data("RegularLessons")
-            await self._DBManager.insert_a_lot_of_unique_data("GroupOccupancy", await self._DBDataFormatter.format_groups_occupancy_data(regularLessons), ["idGroup"])
+            await self._DBManager.insert_a_lot_of_unique_data("GroupOccupancy", await self._DBDataFormatter.format_regulars_for_groups_occupancy_data(regularLessons), ["idGroup"])
         except aiosqlite.Error as e:
             print(f"Ошибка при добавлении данных в таблицу GroupOccupancy: {e}")
 
@@ -113,7 +113,7 @@ class DataBase:
         """
         try:
             group = await self._DBManager.select_one_data('GroupOccupancy', {'idGroup': idGroup})
-            return await self._DBDataFormatter.format_group_occupancy_data(group)
+            return await self._DBDataFormatter.format_regular_for_group_occupancy_data(group)
         except aiosqlite.Error as e:
             print(f"Ошибка при получении данных о заполненности группы: {e}")
             return {}
@@ -130,7 +130,7 @@ class DataBase:
             str: Строка с информацией о доступных группах.
         """
         try:
-            groupsOccupancy = await self._DBDataFormatter.format_groups_occupancy_data(await self._DBManager.select_all_data('GroupOccupancy'))
+            groupsOccupancy = await self._DBDataFormatter.format_regulars_for_groups_occupancy_data(await self._DBManager.select_all_data('GroupOccupancy'))
             string = "Доступные группы:\n"
             for i in groupsOccupancy:
                 regularLesson = await self._DBDataFormatter.format_regular_lesson(await self._DBManager.select_one_data('RegularLessons', {'idGroup': i['idGroup']}))

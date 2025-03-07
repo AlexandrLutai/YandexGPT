@@ -13,7 +13,7 @@ class TestDataBase(aiounittest.AsyncTestCase):
 
     async def test_add_data_in_table_group_occupancy(self):
         self.db._DBManager.select_all_data.return_value = []
-        self.db._DBDataFormatter.format_groups_occupancy_data.return_value = []
+        self.db._DBDataFormatter.format_regulars_for_groups_occupancy_data.return_value = []
         await self.db.add_data_in_table_group_occupancy()
         self.db._DBManager.select_all_data.assert_called_once_with("RegularLessons")
         self.db._DBManager.insert_a_lot_of_unique_data.assert_called_once()
@@ -47,7 +47,7 @@ class TestDataBase(aiounittest.AsyncTestCase):
 
     async def test_get_group_occupancy_data(self):
         self.db._DBManager.select_one_data.return_value = {}
-        self.db._DBDataFormatter.format_group_occupancy_data.return_value = {}
+        self.db._DBDataFormatter.format_regular_for_group_occupancy_data.return_value = {}
         result = await self.db.get_group_occupancy_data(1)
         self.assertEqual(result, {})
         self.db._DBManager.select_one_data.assert_called_once_with('GroupOccupancy', {'idGroup': 1})

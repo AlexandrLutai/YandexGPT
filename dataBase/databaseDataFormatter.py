@@ -8,7 +8,7 @@ class DatabaseDataFormatter:
     Класс для форматирования данных из базы данных.
     """
 
-    async def format_group_occupancy_data(self, group: tuple) -> GroupOccupancyDict:
+    async def format_regular_for_group_occupancy_data(self, regularLesson: tuple) -> GroupOccupancyDict:
         """
         Асинхронно форматирует данные о заполненности группы.
 
@@ -19,14 +19,14 @@ class DatabaseDataFormatter:
             GroupOccupancyDict: Словарь с отформатированными данными о заполненности группы.
         """
         return {
-            'idGroup': group[0],
-            'idsStudents': group[2],
-            'dateOfEvent': (await get_date_next_weekday(group[5])).strftime('%d.%m.%Y'),
-            'count': len(group[2].split(',')),
+            'idGroup': regularLesson[0],
+            'idsStudents': regularLesson[2],
+            'dateOfEvent': (await get_date_next_weekday(regularLesson[5])).strftime('%d.%m.%Y'),
+            'count': len(regularLesson[2].split(',')),
             'lastUpdate': datetime.date.today()
         }
 
-    async def format_groups_occupancy_data(self, groups: list[tuple]) -> list[GroupOccupancyDict]:
+    async def format_regulars_for_groups_occupancy_data(self, regularLessons: list[tuple]) -> list[GroupOccupancyDict]:
         """
         Асинхронно форматирует данные о заполненности групп.
 
@@ -37,8 +37,8 @@ class DatabaseDataFormatter:
             list[GroupOccupancyDict]: Список словарей с отформатированными данными о заполненности групп.
         """
         allGroups = []
-        for i in groups:
-            allGroups.append(await self.format_group_occupancy_data(i))
+        for i in regularLessons:
+            allGroups.append(await self.format_regular_for_group_occupancy_data(i))
         return allGroups
 
     async def format_locations_or_teachers(self, data: list[tuple]) -> list[LocationDict]:

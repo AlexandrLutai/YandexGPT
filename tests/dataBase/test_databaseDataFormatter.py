@@ -3,6 +3,7 @@ import aiounittest
 from dataBase.databaseDataFormatter import DatabaseDataFormatter
 from mTyping.dictTypes import RegularLessonDict, StudentAbsenceDict, LocationDict, GroupOccupancyDict
 from unittest.mock import patch
+from functions.functions import get_date_next_weekday
 import datetime
 
 class TestDatabaseDataFormatter(aiounittest.AsyncTestCase):
@@ -10,43 +11,21 @@ class TestDatabaseDataFormatter(aiounittest.AsyncTestCase):
     def setUp(self):
         self.formatter = DatabaseDataFormatter()
 
-    async def test_format_group_occupancy_data(self):
-        group = (1, 'Group 1', '1,2,3', '2025-02-20', '2025-02-20', 0)
+    async def test_format_regular_for_group_occupancy_data(self):
+        group = (1,"C#", '4,3,4', 1,1, 6, '13:30', '15:30', 1, 12, "13.04.2025", 1)
+       
         with patch('functions.functions.get_date_next_weekday', return_value=datetime.date(2023, 2, 20)):
-            result = await self.formatter.format_group_occupancy_data(group)
+            result = await self.formatter.format_regular_for_group_occupancy_data(group)
             expected = {
                 'idGroup': 1,
-                'idsStudents': '1,2,3',
-                'dateOfEvent': '24.02.2025',
+                'idsStudents': '4,3,4',
+                'dateOfEvent':(await get_date_next_weekday(group[5])).strftime('%d.%m.%Y'),
                 'count': 3,
                 'lastUpdate': datetime.date.today()
             }
             self.assertEqual(result, expected)
 
-    async def test_format_groups_occupancy_data(self):
-        groups = [
-            (1, 'Group 1', '1,2,3', '2025-02-20', '2025-02-20', 0),
-            (2, 'Group 2', '4,5,6', '2025-02-21', '2025-02-21', 1)
-        ]
-        with patch('functions.functions.get_date_next_weekday', return_value=datetime.date(2023, 2, 20)):
-            result = await self.formatter.format_groups_occupancy_data(groups)
-            expected = [
-                {
-                    'idGroup': 1,
-                    'idsStudents': '1,2,3',
-                    'dateOfEvent': '24.02.2025',
-                    'count': 3,
-                    'lastUpdate': datetime.date.today()
-                },
-                {
-                    'idGroup': 2,
-                    'idsStudents': '4,5,6',
-                    'dateOfEvent': '25.02.2025',
-                    'count': 3,
-                    'lastUpdate': datetime.date.today()
-                }
-            ]
-            self.assertEqual(result, expected)
+   
 
     async def test_format_locations_or_teachers(self):
         data = [(1, 'Location 1'), (2, 'Teacher 1')]

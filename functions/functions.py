@@ -33,7 +33,7 @@ def db_ops(db_name):
     finally:
         conn.close()
 
-async def get_date_next_weekday(numberDay:int):
+async def get_date_next_weekday(numberDay:int) -> str:
    
     d = datetime.timedelta( (7 + numberDay - datetime.date.today().weekday())%7 ).days
     return  datetime.date.today() + datetime.timedelta(d)
