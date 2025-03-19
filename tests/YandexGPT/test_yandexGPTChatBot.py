@@ -2,7 +2,7 @@ import unittest
 from unittest.mock import AsyncMock, patch
 from YandexGPT.yandexGPTChatBot import YandexGPTChatBot
 from YandexGPT.yandexGPTModel import YandexGPTModel
-from dataBase.database import DataBase
+from dataBase.databaseManager import DataBaseManager
 from crm.crmDataManagerInterface import CrmDataManagerInterface
 from dataBase.contextDataBase import ContextDataBase
 from YandexGPT.messageAnalyzer import MessageAnalyzer
@@ -13,7 +13,7 @@ class TestYandexGPTChatBot(unittest.IsolatedAsyncioTestCase):
 
     async def asyncSetUp(self):
         self.mock_gpt = AsyncMock(YandexGPTModel)
-        self.mock_db = AsyncMock(DataBase)
+        self.mock_db = AsyncMock(DataBaseManager)
         self.mock_crm = AsyncMock(CrmDataManagerInterface)
         self.chatBot = YandexGPTChatBot(self.mock_gpt, self.mock_db, self.mock_crm)
 

@@ -1,13 +1,13 @@
 import unittest
 import aiounittest
 from unittest.mock import AsyncMock, patch, MagicMock
-from dataBase.databaseManager import DatabaseManager
+from dataBase.database import Database
 import aiosqlite
 
 class TestDatabaseManager(aiounittest.AsyncTestCase):
 
     def setUp(self):
-        self.db_manager = DatabaseManager('test.db')
+        self.db_manager = Database('test.db')
 
     @patch('dataBase.databaseManager.async_db_ops')
     async def test_insert_data(self, mock_db_ops):

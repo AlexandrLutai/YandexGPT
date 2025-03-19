@@ -1,11 +1,11 @@
-from dataBase.database import DataBase 
+from dataBase.databaseManager import DataBaseManager 
 from crm.AlfaCRM.alfaCRMDataManager import AlfaCRMDataManager
-
-class AlfaCRMDBManager:
+from crm.crmDBManagerInterface import CrmDBManagerInterface
+class AlfaCRMDBManager(CrmDBManagerInterface):
     """
     Добавляет данные из CRM в базу данных.
     """
-    def __init__(self, dataBase: DataBase, alfaCRMDataManager: AlfaCRMDataManager):
+    def __init__(self, dataBase: DataBaseManager, alfaCRMDataManager: AlfaCRMDataManager):
         """
         Инициализирует менеджер базы данных CRM.
 
@@ -17,11 +17,11 @@ class AlfaCRMDBManager:
         self.dataManager = alfaCRMDataManager
 
     async def synchronise_teachers(self):
-        """
+        """ 
         Асинхронно синхронизирует данные учителей с базой данных.
         """
         try:
-            await self.db.synchronise_teachers(await self.dataManager.get_teachers())
+            await self.db.synchronise_teachers_and_locations(await self.dataManager.get_teachers())
             print('synchroniseTeachers Ok')
         except Exception as e:
             print(f"Ошибка при синхронизации учителей: {e}")
@@ -51,7 +51,7 @@ class AlfaCRMDBManager:
             for i in idsGroups:
                 print(" insertInStudentAbsences group id ", i)
                 students = await self.dataManager.get_students_missed_lesson(i)
-                await self.db.fill_table_student_absences(students)
+                await self.db.add_student_absences(students)
         except Exception as e:
             print(f"Ошибка при вставке данных о пропусках студентов: {e}")
 

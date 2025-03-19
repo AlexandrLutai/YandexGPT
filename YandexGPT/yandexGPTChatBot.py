@@ -1,5 +1,5 @@
 import json
-from dataBase.database import DataBase
+from dataBase.databaseManager import DataBaseManager
 from typing import TypedDict
 from crm.crmDataManagerInterface import CrmDataManagerInterface
 from YandexGPT.yandexGPTModel import YandexGPTModel
@@ -27,7 +27,7 @@ class YandexGPTChatBot:
     }
     """
 
-    def __init__(self, gpt: YandexGPTModel, db: DataBase, crm: CrmDataManagerInterface):
+    def __init__(self, gpt: YandexGPTModel, db: DataBaseManager, crm: CrmDataManagerInterface):
         """
         Инициализирует объект чат-бота YandexGPT.
 

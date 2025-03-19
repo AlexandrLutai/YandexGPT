@@ -1,270 +1,229 @@
 import aiosqlite
-from functions.functions import async_db_ops, db_ops
-
-class DatabaseManager:
+from functions.functions import async_db_ops, get_date_next_weekday, get_day_name, assign_work_offs_to_text
+from mTyping.dictTypes import RegularLessonDict, StudentAbsenceDict, LocationDict, GroupOccupancyDict
+from dataBase.database import Database
+from dataBase.databaseDataFormatter import DatabaseDataFormatter
+from datetime import date, datetime
+class DataBaseManager:
     """
-    Класс для управления базой данных.
+    Создаёт необходимые таблицы и предоставляет интерфейс для работы с ними.
     """
-
+    
     def __init__(self, path: str):
         """
-        Инициализирует объект DatabaseManager.
-
+        Инициализирует объект базы данных.
+        
         Args:
             path (str): Путь к файлу базы данных.
         """
-        self.path = path
-        self._create_tables()
+        self._DB = Database(path)
+        self._DBDataFormatter = DatabaseDataFormatter()
+
+    
+    async def update_data_group_occupancy(self) -> None:
+        pass
+
+    #Странный метод, написан не эффективно, для добавления данных сначала удаляются поля, которые нужно обновить, а за тем заполняются уникальные данные.
+    async def add_data_in_table_group_occupancy(self, synchroniseParams: list[int] | None = None) -> None:
+        """
+        Добавляет данные в таблицу GroupOccupancy.
+
+        Args:
+            synchroniseParams (list[int] | None): Данные групп, которые нужно обновить.
+        """
+        try:
+            if synchroniseParams:
+                await self._DB.delete_a_lot_of_data("GroupOccupancy", [{"idGroup": i} for i in synchroniseParams])
+            regularLessons = await self._DB.select_all_data("RegularLessons")
+            await self._DB.insert_a_lot_of_unique_data("GroupOccupancy", await self._DBDataFormatter.format_regulars_for_groups_occupancy_data(regularLessons), ["idGroup"])
+        except aiosqlite.Error as e:
+            print(f"Ошибка при добавлении данных в таблицу GroupOccupancy: {e}")
+
+    async def synchronise_table_regular_lessons(self, groups: list[RegularLessonDict]) -> None:
+        """
+        Синхронизирует таблицу RegularLessons с предоставленными данными.
+
+        Args:
+            groups (list[RegularLessonDict]): Список словарей с данными о регулярных занятиях.
+        """
+        try:
+            await self._DB.delete_data("RegularLessons")
+            await self._DB.insert_a_lot_of_data("RegularLessons", groups)
+        except aiosqlite.Error as e:
+            print(f"Ошибка при синхронизации таблицы RegularLessons: {e}")
+
+    
+
+    async def synchronise_teachers_and_locations(self, data: list[LocationDict], table: str = "Teachers") -> None:
+        """
+        Синхронизирует таблицу Teachers с предоставленными данными.
+
+        Args:
+            data (list[LocationDict]): Список словарей с данными о преподавателях.
+        """
+        try:
+            await self._DB.delete_data("Teachers")
+            await self._DB.insert_a_lot_of_data("Teachers", data)
+        except aiosqlite.Error as e:
+            print(f"Ошибка при синхронизации таблицы Teachers: {e}")
+
+    async def add_student_absences(self, students: list[StudentAbsenceDict]) -> None:
+        """
+        Заполняет таблицу StudentAbsences данными об отсутствии студентов.
+
+        Args:
+            students (list[StudentAbsenceDict]): Список словарей с данными об отсутствии студентов.
+        """
+        try:
+            await self._DB.insert_a_lot_of_unique_data("StudentAbsences", students, ["idStudent", "idLesson"])
+        except aiosqlite.Error as e:
+            print(f"Ошибка при заполнении таблицы StudentAbsences: {e}")
+
+    async def get_regular_lessons_ids(self) -> list[int]:
+        """
+        Возвращает список идентификаторов регулярных занятий.
+
+        Returns:
+            list[int]: Список идентификаторов регулярных занятий.
+        """
+        try:
+            groups = await self._DB.select_all_data("RegularLessons")
+            return [group[0] for group in groups]
+        except aiosqlite.Error as e:
+            print(f"Ошибка при получении идентификаторов регулярных занятий: {e}")
+            return []
+
+    async def get_group_occupancy_data(self, idGroup: int) -> GroupOccupancyDict:
+        """
+        Возвращает данные о заполненности группы.
+
+        Args:
+            idGroup (int): Идентификатор группы.
+
+        Returns:
+            GroupOccupancyDict: Словарь с данными о заполненности группы.
+        """
+        try:
+            group = await self._DB.select_one_data('GroupOccupancy', {'idGroup': idGroup})
+            return await self._DBDataFormatter.format_regular_for_group_occupancy_data(group)
+        except aiosqlite.Error as e:
+            print(f"Ошибка при получении данных о заполненности группы: {e}")
+            return {}
+
+    # async def _get_avilable_group_data(self, idGroup: int = None, idLocation: int = None) -> GroupOccupancyDict:
+    #     try:
+    #         groups = await self._DB.select_all_data('GroupOccupancy')
+    #         for group in groups:
+    #             regularLesson = await self._DBDataFormatter.format_regular_lesson(await self._DB.select_one_data('RegularLessons', {'idGroup': group['idGroup']}))
+    #             if idGroup !=
+    async def get_available_groups(self, idGroup: int = None, idLocation: str = None) -> str:
+        """
+        Возвращает строку с информацией о доступных группах.
+
+        Args:
+            idGroup (int, optional): Идентификатор группы для фильтрации. Defaults to None.
+            idLocation (str, optional): Идентификатор локации для фильтрации. Defaults to None.
+
+        Returns:
+            str: Строка с информацией о доступных группах.
+        """
+        try:
+            groupsOccupancy = await self._DBDataFormatter.format_regulars_for_groups_occupancy_data(await self._DB.select_all_data('GroupOccupancy'))
+            string = "Доступные группы:\n"
+            for i in groupsOccupancy:
+                regularLesson = await self._DBDataFormatter.format_regular_lesson(await self._DB.select_one_data('RegularLessons', {'idGroup': i['idGroup']}))
+                if idGroup != regularLesson['idGroup'] and idLocation == regularLesson['location']:
+                    if i['count'] < regularLesson['maxStudents']:
+                        location = await self._DBDataFormatter.format_location_or_teacher(await self._DB.select_one_data('Locations', {'id': regularLesson['location']}))
+                        teacher = await self._DBDataFormatter.format_location_or_teacher(await self._DB.select_one_data('Teachers', {'id': regularLesson['teacher']}))
+                        string += f"""
+                        id Группы: {regularLesson['idGroup']}, Основная тема: {regularLesson['topic']}, Темы отработок: {i['worksOffsTopics']}, Локация: {location['name']}, Преподаватель: {teacher['name']}, День недели: {get_day_name(regularLesson['day'])}, Время начала: {regularLesson['timeFrom']}, Время окончания: {regularLesson['timeTo']}, Назначать отработки: {assign_work_offs_to_text(regularLesson['assignWorkOffs'])}
+                        """
+            return string
+        except aiosqlite.Error as e:
+            print(f"Ошибка при получении данных о заполненности групп: {e}")
+            return ""
+
+    async def get_students_absences_information(self) -> list[StudentAbsenceDict]:
+        """
+        Возвращает информацию об отсутствии студентов.
+
+        Returns:
+            list[StudentAbsenceDict]: Список словарей с данными об отсутствии студентов.
+        """
+        try:
+            studentAbsences = await self._DBDataFormatter.format_students_absences(await self._DB.select_all_data('StudentAbsences', {'workOffScheduled': 0}))
+            students = []
+            for i in studentAbsences:
+                regularLesson = await self._DBDataFormatter.format_location_or_teacher(await self._DB.select_one_data('RegularLessons', {'idGroup': i['idGroup']}))
+                teacher = await self._DBDataFormatter.format_location_or_teacher(await self._DB.select_one_data('Teachers', {'id': regularLesson['teacher']}))
+                string = f"""
+                Имя ребёнка: {i['name']}
+                Тема: {i['topic']}
+                Преподаватель: {teacher['name']}
+                День основного занятия: {get_day_name(regularLesson['day'])}
+                Время начала основного занятия: {regularLesson['timeFrom']}
+                """
+                students.append({'text': string, 'idGroup': int(i['idGroup']), 'location': regularLesson['location'], "phoneNumber": i['phoneNumber']})
+            return students
+        except aiosqlite.Error as e:
+            print(f"Ошибка при получении данных об отсутствии студентов: {e}")
+            return []
+
+    async def get_regular_lessons(self, idGroup: int) -> RegularLessonDict:
+        """
+        Возвращает данные о регулярных занятиях для указанной группы.
+
+        Args:
+            idGroup (int): Идентификатор группы.
+
+        Returns:
+            RegularLessonDict: Словарь с данными о регулярных занятиях.
+        """
+        try:
+            group = await self._DB.select_one_data('RegularLessons', {'idGroup': idGroup})
+            return await self._DBDataFormatter.format_regular_lesson(group)
+        except aiosqlite.Error as e:
+            print(f"Ошибка при получении данных о группе: {e}")
+            return {}
+
+    async def get_student(self, phoneNumber: str) -> StudentAbsenceDict:
+        """
+        Возвращает данные о студенте по номеру телефона.
+
+        Args:
+            phoneNumber (str): Номер телефона студента.
+
+        Returns:
+            StudentAbsenceDict: Словарь с данными о студенте.
+        """
+        try:
+            student = await self._DB.select_one_data('StudentAbsences', {'phoneNumber': phoneNumber})
+            return await self._DBDataFormatter.format_student_absence(student)
+        except aiosqlite.Error as e:
+            print(f"Ошибка при получении данных о студенте: {e}")
+            return {}
+
+    async def get_all_locations(self) -> list[LocationDict]:
+        """
+        Возвращает список всех локаций.
+
+        Returns:
+            list[LocationDict]: Список словарей с данными о локациях.
+        """
+        try:
+            locations = await self._DB.select_all_data('Locations')
+            return await self._DBDataFormatter.format_locations_or_teachers(locations)
+        except aiosqlite.Error as e:
+            print(f"Ошибка при получении данных о локациях: {e}") 
+            return []
+
+    async def get_lessons_event_date(self, idGroup : int = None) -> dict[int: date]:
+        groups = await self._DB.select_all_data("GroupOccupancy")
+        groupsDatesEvents = {}
+        for group in groups:
+            event_date = datetime.strftime(group[3])
+            groupsDatesEvents[group[0]] = event_date
+        return groupsDatesEvents
         
 
-  
-    def _create_tables(self):
-        """
-        Создаёт необходимые таблицы в базе данных.
-        """
-        try:
-            with db_ops(self.path) as cursor:
-                cursor.executescript(
-                    '''
-                    CREATE TABLE IF NOT EXISTS StudentAbsences(
-                    idStudent INTEGER NOT NULL, 
-                    name TEXT NOT NULL,
-                    date TEXT NOT NULL,
-                    topic TEXT NOT NULL,
-                    idGroup TEXT NOT NULL,
-                    idLesson INTEGER NOT NULL,
-                    phoneNumber TEXT NOT NULL,
-                    teacher INTEGER NOT NULL,
-                    workOffScheduled INTEGER NOT NULL DEFAULT 0,
-                    dateNextConnection TEXT DEFAULT 0,
-                    dateLastConnection TEXT,
-                    groupForWorkingOut INTEGER,
-                    dateAdded TEXT DEFAULT CURRENT_TIMESTAMP
-                    );
-                    CREATE TABLE IF NOT EXISTS GroupOccupancy(
-                    idGroup INTEGER,
-                    newStudents TEXT,
-                    idsStudents TEXT,
-                    dateOfEvent TEXT,
-                    count INTEGER DEFAULT 0,
-                    lastUpdate TEXT,
-                    worksOffsTopics TEXT
-                    );
-                    CREATE TABLE IF NOT EXISTS RegularLessons(
-                    idGroup INTEGER NOT NULL,
-                    topic TEXT NOT NULL,
-                    idsStudents TEXT,
-                    location INTEGER NOT NULL,
-                    teacher INTEGER NOT NULL,
-                    day INTEGER NOT NULL,
-                    timeFrom TEXT NOT NULL,
-                    timeTo TEXT NOT NULL,
-                    assignWorkOffs INTEGER DEFAULT 1,
-                    maxStudents INTEGER NOT NULL,
-                    lastUpdate TEXT NOT NULL,
-                    subjectId INTEGER 
-                    );
-                    CREATE TABLE IF NOT EXISTS Locations(
-                    id INTEGER NOT NULL,
-                    name TEXT NOT NULL
-                    );
-                    CREATE TABLE IF NOT EXISTS Teachers(
-                    id INTEGER NOT NULL,
-                    name TEXT NOT NULL
-                    )
-                    '''
-                )
-        except aiosqlite.Error as e:
-            print(f"Ошибка при создании таблиц: {e}")
-
-    async def insert_data(self, table: str, data: dict) -> None:
-        """
-        Вставляет данные в указанную таблицу.
-
-        Args:
-            table (str): Название таблицы.
-            data (dict): Словарь с данными для вставки.
-        """
-        if not data:
-            return
-        keys = data.keys()
-        placeholders = ','.join(['?' for i in range(len(data))])
-        colums = ','.join(keys)
-        try:
-            async with async_db_ops(self.path) as cursor:
-                await cursor.execute(f"INSERT INTO {table} ({colums}) VALUES ({placeholders})", tuple(data.values()))
-        except aiosqlite.Error as e:
-            print(f"Ошибка при вставке данных: {e}")
-
-    async def insert_a_lot_of_unique_data(self, table: str, data: list[dict], selectedFields: list[str]) -> None:
-        """
-        Вставляет множество уникальных записей в указанную таблицу.
-
-        Args:
-            table (str): Название таблицы.
-            data (list[dict]): Список словарей с данными для вставки.
-            selectedFields (list[str]): Список полей для проверки уникальности.
-        """
-        if not data or not selectedFields:
-            return
-        for item in data:
-            await self.insert_unique_data(table, item, {key: item[key] for key in selectedFields})
-
-    async def insert_a_lot_of_data(self, table: str, data: list[dict]) -> None:
-        """
-        Вставляет множество записей в указанную таблицу.
-
-        Args:
-            table (str): Название таблицы.
-            data (list[dict]): Список словарей с данными для вставки.
-        """
-        if not data:
-            return
-        for item in data:
-            await self.insert_data(table, item)
-
-    async def insert_unique_data(self, table: str, data: dict, selectedParams: dict) -> None:
-        """
-        Вставляет уникальные данные в указанную таблицу.
-
-        Args:
-            table (str): Название таблицы.
-            data (dict): Словарь с данными для вставки.
-            selectedParams (dict): Словарь с параметрами для проверки уникальности.
-        """
-        if not data or not selectedParams:
-            return
-        sql = f"SELECT * FROM {table} WHERE " + " AND ".join([f"{key} = ?" for key in selectedParams.keys()])
-        try:
-            async with async_db_ops(self.path) as cursor:
-                await cursor.execute(sql, tuple(selectedParams.values()))
-                if not await cursor.fetchone():
-                    await self.insert_data(table, data)
-        except aiosqlite.Error as e:
-            print(f"Ошибка при вставке уникальных данных: {e}")
-
-    async def clear_table(self, table: str) -> None:
-        """
-        Очищает указанную таблицу.
-
-        Args:
-            table (str): Название таблицы.
-        """
-        try:
-            async with async_db_ops(self.path) as cursor:
-                await cursor.execute(f"DELETE FROM {table}")
-        except aiosqlite.Error as e:
-            print(f"Ошибка при очистке таблицы: {e}")
-
-    async def _select_data(self, table: str, getAllData: bool = True, selectedParams: dict = None) -> tuple:
-        """
-        Выбирает данные из указанной таблицы.
-
-        Args:
-            table (str): Название таблицы.
-            getAllData (bool): Флаг для выбора всех данных или одной записи.
-            selectedParams (dict, optional): Словарь с параметрами для условия WHERE.
-
-        Returns:
-            tuple: Кортеж с выбранными данными. | list[tuple]: Список кортежей с выбранными данными.
-        """
-        if not selectedParams:
-            sql = f"SELECT * FROM {table}"
-            params = ()
-        else:
-            sql = f"SELECT * FROM {table} WHERE " + " AND ".join([f"{key} = ?" for key in selectedParams.keys()])
-            params = tuple(selectedParams.values())
-        try:
-            async with async_db_ops(self.path) as cursor:
-                await cursor.execute(sql, params)
-                if getAllData:
-                    return await cursor.fetchall()
-                else:
-                    return await cursor.fetchone()
-        except aiosqlite.Error as e:
-            print(f"Ошибка при выборке данных: {e}")
-            return ()
-
-    async def select_all_data(self, table: str, selectedParams: dict = None) -> list[tuple]:
-        """
-        Выбирает все данные из указанной таблицы.
-
-        Args:
-            table (str): Название таблицы.
-            selectedParams (dict, optional): Словарь с параметрами для условия WHERE.
-
-        Returns:
-            list[tuple]: Список кортежей с выбранными данными.
-        """
-        return await self._select_data(table, True, selectedParams)
-
-    async def select_one_data(self, table: str, selectedParams: dict = None) -> tuple:
-        """
-        Выбирает одну запись из указанной таблицы.
-
-        Args:
-            table (str): Название таблицы.
-            selectedParams (dict, optional): Словарь с параметрами для условия WHERE.
-
-        Returns:
-            tuple: Кортеж с выбранными данными.
-        """
-        return await self._select_data(table, False, selectedParams)
-
-    async def update_data(self, data: dict[str, any], tableName: str, selectPams: dict[str, any] | None) -> None:
-        """
-        Обновляет данные в указанной таблице.
-
-        Args:
-            data (dict[str, any]): Словарь с данными для обновления.
-            tableName (str): Название таблицы.
-            selectPams (dict[str, any] | None): Словарь с параметрами для условия WHERE.
-        """
-        try:
-            set_clause = ", ".join([f"{key} = ?" for key in data.keys()])
-            params = tuple(data.values())
-
-            if selectPams:
-                where_clause = " AND ".join([f"{key} = ?" for key in selectPams.keys()])
-                params += tuple(selectPams.values())
-                sql = f"UPDATE {tableName} SET {set_clause} WHERE {where_clause}"
-            else:
-                sql = f"UPDATE {tableName} SET {set_clause}"
-
-            async with async_db_ops(self.path) as cursor:
-                await cursor.execute(sql, params)
-        except aiosqlite.Error as e:
-            print(f"Ошибка при обновлении данных в таблице {tableName}: {e}")
-
-    async def delete_data(self, table: str, selectedParams: dict = None) -> None:
-        """
-        Удаляет данные из указанной таблицы.
-
-        Args:
-            table (str): Название таблицы.
-            selectedParams (dict, optional): Словарь с параметрами для условия WHERE.
-        """
-        if not selectedParams:
-            sql = f"DELETE FROM {table}"
-            param = ()
-        else:
-            sql = f"DELETE FROM {table} WHERE " + " AND ".join([f"{key} = ?" for key in selectedParams.keys()])
-            param = tuple(selectedParams.values())
-        try:
-            async with async_db_ops(self.path) as cursor:
-                await cursor.execute(sql, param)
-        except aiosqlite.Error as e:
-            print(f"Ошибка при удалении данных: {e}")
-
-    async def delete_a_lot_of_data(self, table: str, data: list[dict]) -> None:
-        """
-        Удаляет множество записей из указанной таблицы.
-
-        Args:
-            table (str): Название таблицы.
-            data (list[dict]): Список словарей с параметрами для удаления.
-        """
-        if not data:
-            return
-        for item in data:
-            await self.delete_data(table, item)

@@ -151,3 +151,5 @@ class DatabaseDataFormatter:
             'dateLastConnection': student[10],
             'groupForWorkingOut': student[11]
         }
+    
+    

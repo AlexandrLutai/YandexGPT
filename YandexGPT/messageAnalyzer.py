@@ -1,6 +1,6 @@
 from crm.crmDataManagerInterface import CrmDataManagerInterface
 from YandexGPT.chatScriptAnalyzer import ChatScriptAnalyzer
-from dataBase.database import DataBase
+from dataBase.databaseManager import DataBaseManager
 from functions.functions import get_duration, get_date_next_weekday
 from mTyping.dictTypes import MessageForAnalyzeDict
 
@@ -8,7 +8,7 @@ import datetime
 from typing import TypedDict
 
 class MessageAnalyzer:
-    def __init__(self, chatAnalyzer: ChatScriptAnalyzer, db: DataBase, crm: CrmDataManagerInterface):
+    def __init__(self, chatAnalyzer: ChatScriptAnalyzer, db: DataBaseManager, crm: CrmDataManagerInterface):
         """
         Инициализирует объект анализатора сообщений.
 

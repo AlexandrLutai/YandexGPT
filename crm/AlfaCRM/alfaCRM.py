@@ -148,7 +148,7 @@ class AlfaCRM:
         return await session.post(path, json=data, headers=self._header)
 
     @_handle_401(return_items=True)
-    async def get_data(self, session: aiohttp.ClientSession, model: str, data: dict[str, any]) -> aiohttp.ClientResponse:
+    async def get_data(self, session: aiohttp.ClientSession, model: str, data: dict[str, any]) -> dict:
         """
         Получает данные из CRM.
 

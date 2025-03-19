@@ -51,6 +51,11 @@ class AlfaCRMDataManager(CrmDataManagerInterface):
         """
         return [lesson for lesson in all_lessons if lesson['regular_id'] is not None]
 
+    #Доработать
+    async def _get_next_lessons_by_group_id(self, group_id:int ):
+        dateNextLesson = date.today() + timedelta(self._updatePeriodToNextLesson)
+        data = {'status': 1, 'date_from': date.today().strftime('%y-%m-%d'), 'date_to': dateNextLesson.strftime('%y-%m-%d'), 'page': 0, 'group_ids': [group_id]}
+
     async def _get_next_lessons_by_location(self, locationId: int) -> list[dict]:
         """
         Асинхронно получает запланированные уроки по идентификатору локации.
@@ -105,7 +110,10 @@ class AlfaCRMDataManager(CrmDataManagerInterface):
         data = {'status': 3, 'group_id': groupId, 'date_from': datePreviousLesson.strftime('%y-%m-%d'), 'date_to': date.today().strftime('%y-%m-%d')}
         try:
             response = await self._crm.get_data("Lessons", data)
-            return response
+            if response != None:
+                return response
+            else:
+                return False
         except aiohttp.ClientConnectionError as e:
             print(f"Ошибка соединения при получении предыдущих уроков: {e}")
             return []
@@ -144,7 +152,8 @@ class AlfaCRMDataManager(CrmDataManagerInterface):
         for i in locations:
             locationsList.append({'id': i['id'], 'name': i['name']})
         return locationsList
-
+    
+#!!! Переписать Next lesson вообще непонятно для чего!!!!
     async def get_regular_lessons_by_location_id(self, locationId: int) -> list[RegularLessonDict]:
         """
         Асинхронно получает регулярные уроки по идентификатору локации.
@@ -155,30 +164,37 @@ class AlfaCRMDataManager(CrmDataManagerInterface):
         Returns:
             list: Список регулярных уроков.
         """
-        nextLesson = await self._get_next_lessons_by_location(locationId)
+        nextLessons = await self._get_next_lessons_by_location(locationId)
         regularLesson = []
-        for lesson in nextLesson:
+        for nextLesson in nextLessons:
                 try:
-                    groupId = lesson['group_ids'][0]
-                    prev = (await self._get_previus_lesson_by_group_id(groupId))[0]
+                   
+                    
                     regularLesson.append(
-                        {
-                            'idGroup': groupId,
-                            'topic': prev['topic'],
-                            'idsStudents': str(lesson['customer_ids']),
-                            'location': locationId,
-                            'teacher': lesson['teacher_ids'][0],
-                            'day': datetime.strptime(lesson['date'], '%Y-%m-%d').weekday(),
-                            'timeFrom': datetime.strptime(lesson['time_from'], '%Y-%m-%d %H:%M:%S').time().strftime('%H:%M'),
-                            'timeTo': datetime.strptime(lesson['time_to'], '%Y-%m-%d %H:%M:%S').time().strftime('%H:%M'),
-                            'maxStudents': (await self._get_group_by_id(groupId))[0]['limit'],
-                            'lastUpdate': date.today().strftime('Y-%m-%d'),
-                            'subjectId': lesson['subject_id'],
-                        }
+                        await self._format_regular_lesson(nextLesson)
                     )
                 except Exception as e:
                     print(f"Ошибка при получении регулярных уроков: {e}")
         return regularLesson
+    
+    async def _format_regular_lesson(self, nextLesson: dict):
+        topic = None
+        if prevLesson := (await self._get_previus_lesson_by_group_id(nextLesson['group_ids'])[0])[0]:
+            topic = prevLesson['topic']
+        return {
+            'idGroup': nextLesson['group_ids'][0],
+            'topic': topic ,
+            'idsStudents': str(nextLesson['customer_ids']),
+            'location': nextLesson['location_ids'][0],
+            'teacher': nextLesson['teacher_ids'][0],
+            'day': datetime.strptime(nextLesson['date'], '%Y-%m-%d').weekday(),
+            'timeFrom': datetime.strptime(nextLesson['time_from'], '%Y-%m-%d %H:%M:%S').time().strftime('%H:%M'),
+            'timeTo': datetime.strptime(nextLesson['time_to'], '%Y-%m-%d %H:%M:%S').time().strftime('%H:%M'),
+            'maxStudents': (await self._get_group_by_id(nextLesson['group_ids'][0]))[0]['limit'],
+            'lastUpdate': date.today().strftime('Y-%m-%d'),
+            'subjectId': nextLesson['subject_id'],
+            }
+    
 
     async def _get_group_by_id(self, groupId: int) -> list:
         """
@@ -233,7 +249,8 @@ class AlfaCRMDataManager(CrmDataManagerInterface):
                 teachers.append({'id': item['id'], 'name': item['name']})
         return teachers
 
-    async def get_students_missed_lesson(self, groupId: int) -> list[StudentAbsenceDict]:
+    #Bug - если урок не был заполнен, метод выдаст ошибку, так быть не должно 
+    async def get_students_missed_lesson(self, groupId: int) -> list[StudentAbsenceDict] | False:
         """
         Асинхронно получает список студентов, пропустивших урок.
 
@@ -244,7 +261,8 @@ class AlfaCRMDataManager(CrmDataManagerInterface):
             list: Список студентов, пропустивших урок.
         """
         try:
-            group = (await self._get_previus_lesson_by_group_id(groupId))[0]
+            if not (group := (await self._get_previus_lesson_by_group_id(groupId))[0]):
+                return False
             skipping = []
             allStudents = await self._get_students()
             for student in group['details']:
@@ -335,3 +353,9 @@ class AlfaCRMDataManager(CrmDataManagerInterface):
         except Exception as e:
             print(f"Ошибка при создании нового урока: {e}")
             return ""
+
+    #новый метод
+    async def get_lesson_by_id(self, id_group:int) -> RegularLessonDict:
+        return self._
+        pass
+    

@@ -2,13 +2,13 @@ import unittest
 import aiounittest
 from unittest.mock import AsyncMock, patch
 from crm.AlfaCRM.alfaCrmDBManager import AlfaCRMDBManager
-from dataBase.database import DataBase
+from dataBase.databaseManager import DataBaseManager
 from crm.AlfaCRM.alfaCRMDataManager import AlfaCRMDataManager
 
 class TestAlfaCRMDBManager(aiounittest.AsyncTestCase):
 
     def setUp(self):
-        self.db = AsyncMock(spec=DataBase)
+        self.db = AsyncMock(spec=DataBaseManager)
         self.dataManager = AsyncMock(spec=AlfaCRMDataManager)
         self.manager = AlfaCRMDBManager(self.db, self.dataManager)
 

@@ -3,7 +3,7 @@ import autorizationData.authorizationData as autorization
 from crm.AlfaCRM.alfaCRM import AlfaCRM
 from crm.AlfaCRM.alfaCRMDataManager import AlfaCRMDataManager
 from crm.AlfaCRM.alfaCrmDBManager import AlfaCRMDBManager
-from dataBase.database import DataBase
+from dataBase.databaseManager import DataBaseManager
 from dataBase.contextDataBase import ContextDataBase
 from YandexGPT.yandexGPTChatBot import YandexGPTChatBot, YandexGPTModel
 import asyncio
@@ -38,28 +38,28 @@ import asyncio
 
 
 async def main():
-    db = DataBase('dataBase/dataBases/mainDataBase.db')
-    crm = AlfaCRM(autorization.crmhostname, autorization.crmEmail, autorization.crmKey)
-    await crm.init()
+    db = DataBaseManager('dataBase/dataBases/mainDataBase.db')
+    # crm = AlfaCRM(autorization.crmhostname, autorization.crmEmail, autorization.crmKey)
+    # await crm.init()
    
-    crmManager = AlfaCRMDataManager(crm)
-    crmToDBManager = AlfaCRMDBManager(db, crmManager)
+    # crmManager = AlfaCRMDataManager(crm)
+    # crmToDBManager = AlfaCRMDBManager(db, crmManager)
 
-    # Синхронизация бд и CRM
-    locations = await crmManager.get_locations()
-    for location in locations:
-        await db.insert_new_location(location)
+    # # Синхронизация бд и CRM
+    # locations = await crmManager.get_locations()
+    # await db.synchronise_teachers_and_locations(locations)
 
-    await crmToDBManager.synchronise_teachers()
-    await crmToDBManager.synchronise_regular_lessons()
-    await crmToDBManager.insert_in_student_absences()
-    await db.add_data_in_table_group_occupancy()
-
+    # await crmToDBManager.synchronise_teachers()
+    # await crmToDBManager.synchronise_regular_lessons()
+    # await crmToDBManager.insert_in_student_absences()
+    # await db.add_data_in_table_group_occupancy()
+    print(await db.get_lessons_event_date())
     # # Выполняется слишком долго, подумать над хранением данных клиентов локально
     # # Добавить класс для внесения изменений в AlfaCRM
     # # Документирование кода
 
 if __name__ == '__main__':
+    print()
     asyncio.run(main())
 
 # # Выполняется слишком долго, подумать над хранением данных клиентов локально
