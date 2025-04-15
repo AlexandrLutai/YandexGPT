@@ -51,50 +51,7 @@ class AlfaCRMDataManager(CrmDataManagerInterface):
         """
         return [lesson for lesson in all_lessons if lesson['regular_id'] is not None]
 
-    #Доработать
-    async def _get_next_lessons_by_group_id(self, group_id:int ):
-        dateNextLesson = date.today() + timedelta(self._updatePeriodToNextLesson)
-        data = {'status': 1, 'date_from': date.today().strftime('%y-%m-%d'), 'date_to': dateNextLesson.strftime('%y-%m-%d'), 'page': 0, 'group_ids': [group_id]}
-
-    async def _get_next_lessons_by_location(self, locationId: int) -> list[dict]:
-        """
-        Асинхронно получает запланированные уроки по идентификатору локации.
-
-        Args:
-            locationId (int): Идентификатор локации.
-
-        Returns:
-            list: Список следующих уроков.
-        """
-        page = 0
-        dateNextLesson = date.today() + timedelta(self._updatePeriodToNextLesson)
-        data = {'status': 1, 'date_from': date.today().strftime('%y-%m-%d'), 'date_to': dateNextLesson.strftime('%y-%m-%d'), 'page': page, 'location_ids': [locationId]}
-        lessons = []
-        while True:
-            data['page'] = page
-            try:
-                temp = await self._crm.get_data("Lessons", data)
-              
-                if not temp:
-                    break
-                page += 1
-                lessons.extend(await self._select_regular_lessons(temp))
-            except aiohttp.ClientConnectionError as e:
-                print(f"Ошибка соединения при получении следующих уроков: {e}")
-                break
-            except aiohttp.ClientResponseError as e:
-                print(f"Ошибка ответа сервера при получении следующих уроков: {e}")
-                break
-            except aiohttp.ClientPayloadError as e:
-                print(f"Ошибка загрузки данных при получении следующих уроков: {e}")
-                break
-            except RuntimeError as e:
-                print(f"Ошибка выполнения при получении следующих уроков: {e}")
-                break
-            except Exception as e:
-                print(f"Неизвестная ошибка при получении следующих уроков: {e}")
-                break
-        return lessons
+    
 
     async def _get_previus_lesson_by_group_id(self, groupId: int) -> list[dict]:
         """
@@ -152,8 +109,68 @@ class AlfaCRMDataManager(CrmDataManagerInterface):
         for i in locations:
             locationsList.append({'id': i['id'], 'name': i['name']})
         return locationsList
+
     
+    async def _get_next_lessons_by_group_id(self, group_id:int ):
+        try:
+            dateNextLesson = date.today() + timedelta(self._updatePeriodToNextLesson)
+            data = {'status': 1, 'date_from': date.today().strftime('%y-%m-%d'), 'date_to': dateNextLesson.strftime('%y-%m-%d'), 'page': 0, 'group_ids': [group_id]}
+            return self._crm.get_data("Lessons", data)
+        except Exception as e:
+            print("Ошибка при получении регулярного урока: ", e)
+            return False
+        
+    async def _get_next_lessons_by_location(self, locationId: int) -> list[dict]:
+        """
+        Асинхронно получает запланированные уроки по идентификатору локации.
+
+        Args:
+            locationId (int): Идентификатор локации.
+
+        Returns:
+            list: Список следующих уроков.
+        """
+        page = 0
+        dateNextLesson = date.today() + timedelta(self._updatePeriodToNextLesson)
+        data = {'status': 1, 'date_from': date.today().strftime('%y-%m-%d'), 'date_to': dateNextLesson.strftime('%y-%m-%d'), 'page': page, 'location_ids': [locationId]}
+        lessons = []
+        while True:
+            data['page'] = page
+            try:
+                temp = await self._crm.get_data("Lessons", data)
+              
+                if not temp:
+                    break
+                page += 1
+                lessons.extend(await self._select_regular_lessons(temp))
+            except aiohttp.ClientConnectionError as e:
+                print(f"Ошибка соединения при получении следующих уроков: {e}")
+                break
+            except aiohttp.ClientResponseError as e:
+                print(f"Ошибка ответа сервера при получении следующих уроков: {e}")
+                break
+            except aiohttp.ClientPayloadError as e:
+                print(f"Ошибка загрузки данных при получении следующих уроков: {e}")
+                break
+            except RuntimeError as e:
+                print(f"Ошибка выполнения при получении следующих уроков: {e}")
+                break
+            except Exception as e:
+                print(f"Неизвестная ошибка при получении следующих уроков: {e}")
+                break
+        return lessons
+
+    #!!!!Доработать    
+    async def get_regular_lesson_by_group_id(self, group_id):#Доработать
+        try:
+            if not (group := (await self._get_next_lessons_by_group_id(group_id))[0]):
+                return False
+            return await self._format_regular_lesson(group)
+        except Exception as e:
+            print(f"Ошибка при получении регулярного урока: {e}")
+            return False
 #!!! Переписать Next lesson вообще непонятно для чего!!!!
+# Next Lesson во избежание проблем синхронизации 
     async def get_regular_lessons_by_location_id(self, locationId: int) -> list[RegularLessonDict]:
         """
         Асинхронно получает регулярные уроки по идентификатору локации.
@@ -355,7 +372,3 @@ class AlfaCRMDataManager(CrmDataManagerInterface):
             return ""
 
     #новый метод
-    async def get_lesson_by_id(self, id_group:int) -> RegularLessonDict:
-        return self._
-        pass
-    

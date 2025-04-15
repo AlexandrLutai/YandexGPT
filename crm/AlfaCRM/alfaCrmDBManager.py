@@ -26,6 +26,9 @@ class AlfaCRMDBManager(CrmDBManagerInterface):
         except Exception as e:
             print(f"Ошибка при синхронизации учителей: {e}")
 
+    async def update_regular_lesson(self, group_id):
+        g
+        pass
     async def synchronise_regular_lessons(self):
         """
         Асинхронно синхронизирует регулярные уроки с базой данных.

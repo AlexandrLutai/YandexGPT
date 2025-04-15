@@ -1,12 +1,19 @@
 import autorizationData.authorizationData as autorization
 
-from crm.AlfaCRM.alfaCRM import AlfaCRM
-from crm.AlfaCRM.alfaCRMDataManager import AlfaCRMDataManager
-from crm.AlfaCRM.alfaCrmDBManager import AlfaCRMDBManager
-from dataBase.databaseManager import DataBaseManager
-from dataBase.contextDataBase import ContextDataBase
-from YandexGPT.yandexGPTChatBot import YandexGPTChatBot, YandexGPTModel
+# from crm.AlfaCRM.alfaCRM import AlfaCRM
+# from crm.AlfaCRM.alfaCRMDataManager import AlfaCRMDataManager
+# from crm.AlfaCRM.alfaCrmDBManager import AlfaCRMDBManager
+# from dataBase.databaseManager import DataBaseManager
+# from dataBase.contextDataBase import ContextDataBase
+# from YandexGPT.yandexGPTChatBot import YandexGPTChatBot, YandexGPTModel
 import asyncio
+from interfaces.watsapp.wazzup import Wazzup
+
+
+
+
+
+
 # import datetime
 
 # # #Добавление урока
@@ -37,8 +44,8 @@ import asyncio
 # # #     print(chatBot.sendMessage('Отработки', student[0]['phoneNumber'],{'role':"user", "text":message}))
 
 
-async def main():
-    db = DataBaseManager('dataBase/dataBases/mainDataBase.db')
+# async def main():
+#     db = DataBaseManager('dataBase/dataBases/mainDataBase.db')
     # crm = AlfaCRM(autorization.crmhostname, autorization.crmEmail, autorization.crmKey)
     # await crm.init()
    
@@ -53,14 +60,14 @@ async def main():
     # await crmToDBManager.synchronise_regular_lessons()
     # await crmToDBManager.insert_in_student_absences()
     # await db.add_data_in_table_group_occupancy()
-    print(await db.get_lessons_event_date())
+    # print(await db.get_lessons_event_date())
     # # Выполняется слишком долго, подумать над хранением данных клиентов локально
     # # Добавить класс для внесения изменений в AlfaCRM
     # # Документирование кода
 
-if __name__ == '__main__':
-    print()
-    asyncio.run(main())
+# if __name__ == '__main__':
+#     print()
+#     asyncio.run(main())
 
 # # Выполняется слишком долго, подумать над хранением данных клиентов локально
 # # Добавить класс для внесения изменений в AlfaCRM
@@ -73,3 +80,13 @@ if __name__ == '__main__':
 # db.insert_unique_data("StudentAbsences", {"idStudent":1, "name":"Иванов Иван Иванович", "date":"15.02.2025", "topic":"Тема урока", "idGroup":1, "idLesson":1, "phoneNumber":"89999999999", "teacher":1}, {"idStudent":5})
 
 # print("Имя", 3, "321321")
+
+
+async def main():
+    
+    wzp = await Wazzup.create(autorization.wazzup_api_key)
+    
+    print(await wzp.send_message("79620109009", "Привет, это тестовое сообщение от Wazzup!"))
+
+if __name__ == '__main__':
+    asyncio.run(main())
