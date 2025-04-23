@@ -3,7 +3,7 @@ from dataBase.databaseManager import DataBaseManager
 from typing import TypedDict
 from crm.crmDataManagerInterface import CrmDataManagerInterface
 from YandexGPT.yandexGPTModel import YandexGPTModel
-from YandexGPT.messageAnalyzer import MessageAnalyzer
+from YandexGPT.gptMessageAnalyzer import GptMessageAnalyzer
 from YandexGPT.chatScriptAnalyzer import ChatScriptAnalyzer
 from dataBase.contextDataBase import ContextDataBase
 from mTyping.dictTypes import MessageForPromptDict
@@ -27,7 +27,7 @@ class YandexGPTChatBot:
     }
     """
 
-    def __init__(self, gpt: YandexGPTModel, db: DataBaseManager, crm: CrmDataManagerInterface):
+    def __init__(self, gpt: YandexGPTModel):
         """
         Инициализирует объект чат-бота YandexGPT.
 
@@ -37,14 +37,24 @@ class YandexGPTChatBot:
             crm (CrmDataManagerInterface): Интерфейс менеджера данных CRM.
             contextDB (ContextDataBase): Контекстная база данных.
         """
-        self._gpt = gpt
-        self._db = db
-        #self._contextDB = contextDB # Для системы с хранением контекста в БД
+       
+
+        
         self._currentContext:dict[str:list[dict[str:str]]] = {}
         self._groups = []
         self.students = []
         self._currentMessages = {}
-        self.messageAnalyzer = MessageAnalyzer(ChatScriptAnalyzer(gpt, "prompts/chatBotPrompst.json"), db, crm)
+        self._gpt = gpt
+       
+
+    async def get_current_context(self, chatId: str) -> dict[str:str] | None:
+        context =[]
+        if chatId in self._currentContext:
+            context = self._currentContext[chatId]
+        else:
+            context = None
+        return context
+
 
     async def _get_context(self, chatId: str) -> list[MessageForPromptDict]:
         """
@@ -57,11 +67,7 @@ class YandexGPTChatBot:
             list[dict[str:str]]: Список сообщений контекста.
         """
         if not chatId in self._currentContext:
-            # if await self._contextDB.findContext(chatId): # Для системы с хранением контекста в БД
-            #     self._currentContext.update({chatId: await self._contextDB.getContext(chatId)})
-            #     return self._currentContext[chatId]
-            # else: 
-                self._currentContext.update({chatId: []})
+                self._currentContext.update({chatId: {'messages':[], 'chat_script':''}})
         return self._currentContext[chatId]
 
     async def _del_from_current_context(self, chatId: str):
@@ -87,7 +93,7 @@ class YandexGPTChatBot:
             "text": message
         })
 
-    async def _get_message(self, scriptKey: str, chat: str, message: dict = None) -> list[MessageForPromptDict]:
+    async def _get_message(self, scenariesKeys: str, chat: str, message: dict = None) -> list[MessageForPromptDict]:
         """
         Получает сообщение для отправки в модель GPT.
 
@@ -99,7 +105,7 @@ class YandexGPTChatBot:
         Returns:
             list[dict[str:str]]: Список сообщений для отправки.
         """
-        async with await aiofiles.open("prompts/chatBotPrompst.json", encoding='utf-8') as f:
+        async with await aiofiles.open("prompts/chatBotPrompst.json", encoding='utf-8') as f: #Плохое решение, путь строго зафиксирован
             data = json.loads(await f.read())
         return [
             {
@@ -112,7 +118,7 @@ class YandexGPTChatBot:
             },
             {
                 "role": "system",
-                "text": data['scenaries'][scriptKey]
+                "text": data['scenaries'][scenariesKeys]
             },
             *await self._get_context(chat),  # Распаковываем словари из списка
             {
@@ -121,7 +127,7 @@ class YandexGPTChatBot:
             },
         ]
 
-    async def _get_scenaries(self, message: str) -> str:
+    async def _get_scenaries(self,chat_id: str, message: str) -> str:
         """
         Получает сценарий для обработки сообщения.
 
@@ -132,13 +138,18 @@ class YandexGPTChatBot:
         Returns:
             str: Ответ сценария.
         """
-        answer = await self._analizer.analyze(message)
-        if answer != 'None':
-            return answer
+        answer = await self._chatScriptAnalyzer.analyze(message)
+        scenario = None
+        if answer.lower() == 'neutral':
+            scenario = 'neutral'
+        elif answer.lower() != 'none':
+            scenario = answer
         else:
-            return None
+            self._currentContext[chat_id][""]
+        return scenario
+        
 
-    async def send_message(self, scriptKey: str, chat: str, message: str) -> str:
+    async def send_message(self,scriptKey:str, chat_id: str, message: str) -> str:
         """
         Отправляет сообщение в модель GPT и получает ответ.
 
@@ -150,13 +161,15 @@ class YandexGPTChatBot:
         Returns:
             str: Ответ модели GPT.
         """
-        gptMessage = await self._gpt.request(await self._get_message(scriptKey, chat, message))
-        gptMessageForUser = await self.messageAnalyzer.analyze_GPT_answer({"chatId": chat, "text": gptMessage})
-        await self._add_to_context(chat, message['role'], message['text'])
-        await self._add_to_context(chat, "assistant", gptMessage)
+        message_from_gpt = await self._get_message(scriptKey, chat_id, message)
 
-        return gptMessageForUser
+        
+        gptMessage = await self._gpt.request(message_from_gpt)
+        
+        await self._add_to_context(chat_id, message['role'], message)
+        await self._add_to_context(chat_id, "assistant", gptMessage.split('|')[-1]) #Получаю текст для пользователя
 
+        return gptMessage
 
 
 

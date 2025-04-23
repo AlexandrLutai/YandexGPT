@@ -66,5 +66,16 @@ class ChatScriptAnalyzer:
         Returns:
             str: Ответ модели GPT.
         """
-        return await self._gpt.request(await self._get_prompt(message))
+        script = await self._gpt.request(await self._get_prompt(message))
+        return script
 
+
+    async def _get_scenaries(answer:str) -> str|None:
+        scenaries = None
+        if answer.lower() == 'neutral':
+            scenaries='neutral'
+        elif answer.lower() != 'none':
+            scenaries= answer
+        return scenaries
+
+        

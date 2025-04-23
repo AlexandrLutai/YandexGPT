@@ -1,6 +1,6 @@
 import unittest
 from unittest.mock import AsyncMock, patch
-from YandexGPT.messageAnalyzer import MessageAnalyzer
+from YandexGPT.gptMessageAnalyzer import GptMessageAnalyzer
 from mTyping.dictTypes import MessageForAnalyzeDict
 import datetime
 import asyncio
@@ -11,7 +11,7 @@ class TestMessageAnalyzer(unittest.IsolatedAsyncioTestCase):
         self.mock_db = AsyncMock()
         self.mock_crm = AsyncMock()
         self.mock_chatAnalyzer = AsyncMock()
-        self.message_analyzer = MessageAnalyzer(self.mock_chatAnalyzer, self.mock_db, self.mock_crm)
+        self.message_analyzer = GptMessageAnalyzer(self.mock_chatAnalyzer, self.mock_db, self.mock_crm)
 
     async def test_analyze_GPT_answer(self):
         data = {

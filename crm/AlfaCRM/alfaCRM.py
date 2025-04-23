@@ -144,8 +144,17 @@ class AlfaCRM:
         Returns:
             aiohttp.ClientResponse: Ответ от сервера.
         """
-        path = f"https://{self._hostname}/v2api/{self._brunchId}/{AlfaCRM.MODELS_FOR_CREATING[model]}"
-        return await session.post(path, json=data, headers=self._header)
+        try:
+            path = f"https://{self._hostname}/v2api/{self._brunchId}/{AlfaCRM.MODELS_FOR_CREATING[model]}"
+            response = await session.post(path, json=data, headers=self._header)
+            response.raise_for_status()
+            return response
+        except aiohttp.ClientResponseError as e:
+            print(f"Ошибка при создании модели {model}: {e}")
+            return None
+        except Exception as e:
+            print(f"Неизвестная ошибка при создании модели {model}: {e}")
+            return None
 
     @_handle_401(return_items=True)
     async def get_data(self, session: aiohttp.ClientSession, model: str, data: dict[str, any]) -> dict:
@@ -157,10 +166,19 @@ class AlfaCRM:
             data (dict[str, any]): Данные для запроса.
 
         Returns:
-            aiohttp.ClientResponse: Ответ от сервера.
+            dict: Данные из CRM.
         """
-        path = f"https://{self._hostname}/v2api/{self._brunchId}/{AlfaCRM.MODELS_FOR_GETTING_DATA[model]}"
-        return await session.post(path, json=data, headers=self._header)
+        try:
+            path = f"https://{self._hostname}/v2api/{self._brunchId}/{AlfaCRM.MODELS_FOR_GETTING_DATA[model]}"
+            response = await session.post(path, json=data, headers=self._header)
+            response.raise_for_status()
+            return await response.json()
+        except aiohttp.ClientResponseError as e:
+            print(f"Ошибка при получении данных модели {model}: {e}")
+            return {}
+        except Exception as e:
+            print(f"Неизвестная ошибка при получении данных модели {model}: {e}")
+            return {}
 
 
 

@@ -1,5 +1,5 @@
 import aiohttp 
-import json
+
 class Wazzup:
     def __init__(self,api_key):
         self.header = {

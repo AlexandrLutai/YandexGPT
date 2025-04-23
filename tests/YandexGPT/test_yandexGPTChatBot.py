@@ -5,7 +5,7 @@ from YandexGPT.yandexGPTModel import YandexGPTModel
 from dataBase.databaseManager import DataBaseManager
 from crm.crmDataManagerInterface import CrmDataManagerInterface
 from dataBase.contextDataBase import ContextDataBase
-from YandexGPT.messageAnalyzer import MessageAnalyzer
+from YandexGPT.gptMessageAnalyzer import GptMessageAnalyzer
 from YandexGPT.chatScriptAnalyzer import ChatScriptAnalyzer
 from mTyping.dictTypes import MessageForPromptDict
 
@@ -54,8 +54,8 @@ class TestYandexGPTChatBot(unittest.IsolatedAsyncioTestCase):
         message = {"role": "user", "text": "Hello"}
         self.chatBot._currentContext = {chat: []}
         self.mock_gpt.request.return_value = "GPT response"
-        self.chatBot.messageAnalyzer = AsyncMock(MessageAnalyzer)
-        self.chatBot.messageAnalyzer.analyze_GPT_answer.return_value = "Analyzed response"
+        self.chatBot._gptMessageAnalyzer = AsyncMock(GptMessageAnalyzer)
+        self.chatBot._gptMessageAnalyzer.analyze_GPT_answer.return_value = "Analyzed response"
         with patch("aiofiles.open", new_callable=AsyncMock) as mock_open:
             mock_open.return_value.__aenter__.return_value.read.return_value = '{"introduce": "Hello", "technicalInstructions": "Follow the rules", "scenaries": {"testScript": "Test scenario"}}'
             response = await self.chatBot.send_message(scriptKey, chat, message)

@@ -14,10 +14,9 @@ dist/
 .cache/
 
 
-# Контрольные точки в Jupyter notebook лучше оставить в стороне
+# Контрольные точки в Jupyter notebook 
 .ipynb_checkpoints
-ins
-autorizationData/*
+
 *.db
 
 instuctions/*
@@ -29,3 +28,5 @@ instuctions/*
 
 *.docx
 *.db
+
+*.env
