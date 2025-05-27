@@ -1,7 +1,7 @@
 
 # Диаграмма взаимодействия классов
 
-![Взаимодействие классов](https://imgur.com/a/l5YVZJx)
+![Взаимодействие классов](https://i.postimg.cc/KzpS7WXQ/Diagram.png)
 
 ## alfaCRM.py
 

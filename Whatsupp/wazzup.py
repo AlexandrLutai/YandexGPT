@@ -12,7 +12,12 @@ class Wazzup:
         url = "https://api.wazzup24.com/v3/channels"
         async with aiohttp.ClientSession() as session:
             async with session.get(url, headers=self.header) as response:
-                data = await response.json()  
+                if response.status == 401:
+                    raise Exception("Ошибка авторизации: неверный API-ключ или токен.")
+                elif response.status != 200:
+                    raise Exception(f"Ошибка при получении channelId: {response.status} {await response.text()}")
+                
+                data = await response.json()
                 return data[0]["channelId"]
 
     async def send_message(self, phone_number, message):

@@ -29,7 +29,7 @@ class ChatScriptAnalyzer:
             scenaries += key + ": " + instructionsData['scenaries'][key] + "\n"
         return scenaries
 
-    async def _get_prompt(self, message: str) -> list:
+    async def _get_prompt(self, message: str, script_key:str) -> list:
         """
         Асинхронно получает запрос для модели GPT.
 
@@ -44,11 +44,11 @@ class ChatScriptAnalyzer:
         return [
             {
                 "role": "system",
-                "text": instructionData['instruction']
+                "text": instructionData['introduce']
             },
             {
                 "role": "system",
-                "text": await self._get_scenaries(instructionData)
+                "text": instructionData['scenaries'][script_key]
             },
             {
                 "role": "user",

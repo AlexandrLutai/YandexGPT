@@ -267,7 +267,7 @@ class AlfaCRMDataManager(CrmDataManagerInterface):
         return teachers
 
     #Bug - если урок не был заполнен, метод выдаст ошибку, так быть не должно 
-    async def get_students_missed_lesson(self, groupId: int) -> list[StudentAbsenceDict] | False:
+    async def get_students_missed_lesson(self, groupId: int) -> list[StudentAbsenceDict] | bool:
         """
         Асинхронно получает список студентов, пропустивших урок.
 

@@ -1,8 +1,8 @@
 from dotenv import load_dotenv
 import os
 
-# Загрузка переменных из .env
-load_dotenv()
+# Загрузка переменных из .env в корне проекта
+load_dotenv(dotenv_path="config.env")
 
 class Config:
     def __init__(self):
